@@ -1,7 +1,9 @@
 import asyncio
 import re
+from collections.abc import Awaitable, Callable
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from app.agents import (
     AudioAgent,
@@ -59,16 +61,42 @@ class RosewoodPipeline:
     def run(self, request: PipelineRequest) -> PipelineResponse:
         return asyncio.run(self.arun(request))
 
-    async def arun(self, request: PipelineRequest) -> PipelineResponse:
+    async def arun(
+        self,
+        request: PipelineRequest,
+        progress_callback: Callable[[dict[str, Any]], Awaitable[None] | None] | None = None,
+    ) -> PipelineResponse:
+        async def emit(event: str, agent: str, progress: int) -> None:
+            if progress_callback is None:
+                return
+
+            result = progress_callback(
+                {
+                    "event": event,
+                    "agent": agent,
+                    "progress": progress,
+                }
+            )
+            if result is not None:
+                await result
+
+        await emit("started", "Intent Agent", 5)
         intent_output = await self.intent_agent.arun(request)
+        await emit("completed", "Intent Agent", 12)
         visit_intent = VisitIntent(**intent_output.data)
 
         outputs: list[AgentOutput] = [intent_output]
         context = {"intent": visit_intent.model_dump()}
 
+        async def run_agent(agent, progress_start: int, progress_end: int) -> AgentOutput:
+            await emit("started", agent.name, progress_start)
+            output = await agent.arun(request=request, intent=visit_intent, context=context.copy())
+            await emit("completed", agent.name, progress_end)
+            return output
+
         parallel_outputs = await asyncio.gather(
             *[
-                agent.arun(request=request, intent=visit_intent, context=context.copy())
+                run_agent(agent, 18, 52)
                 for agent in self.parallel_agents
             ]
         )
@@ -76,17 +104,19 @@ class RosewoodPipeline:
             outputs.append(output)
             context[output.agent] = output.model_dump()
 
+        await emit("started", self.voice_agent.name, 60)
         voice_output_agent = await self.voice_agent.arun(
             request=request,
             intent=visit_intent,
             context=context,
         )
+        await emit("completed", self.voice_agent.name, 68)
         outputs.append(voice_output_agent)
         context[self.voice_agent.name] = voice_output_agent.model_dump()
 
         artifact_outputs = await asyncio.gather(
             *[
-                agent.arun(request=request, intent=visit_intent, context=context.copy())
+                run_agent(agent, 74, 88)
                 for agent in self.artifact_agents
             ]
         )
@@ -113,6 +143,7 @@ class RosewoodPipeline:
             memory_output=memory_output,
             resonance_output=resonance_output,
         )
+        await emit("started", "Letter Composer", 92)
 
         letter = LetterArtifact(
             date_line="Morning letter · May 17, 2030",
@@ -128,6 +159,7 @@ class RosewoodPipeline:
         saved_paths = self._save_letter(request=request, intent=visit_intent, letter=letter)
         letter.markdown_path = saved_paths["markdown_path"]
         letter.html_path = saved_paths["html_path"]
+        await emit("completed", "Letter Composer", 96)
 
         audio = AudioArtifact(
             script=self._clean_prose(audio_output.get("script", "")),
@@ -267,7 +299,7 @@ class RosewoodPipeline:
         output_dir = Path(__file__).resolve().parents[2] / "generated_letters"
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
         guest_slug = self._slugify(request.profile.guest_name)
         suite_slug = self._slugify(request.profile.suite)
         stem = f"{timestamp}-suite-{suite_slug}-{guest_slug}"

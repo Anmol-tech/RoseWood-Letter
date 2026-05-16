@@ -48,11 +48,41 @@ the pipeline runs.
 - `GET /profiles`
 - `GET /profiles/{profile_id}`
 - `POST /pipeline/run`
+- `POST /pipeline/run-batch`
+- `POST /pipeline/jobs`
+- `GET /pipeline/jobs/{batch_id}`
+- `GET /pipeline/jobs/{batch_id}/{job_id}`
 
 Customer profiles and personas are stored in SQLite at
 `backend/data/rosewood.sqlite`. The database is created automatically on startup.
 Use `profile_id` in `POST /pipeline/run` to generate a letter from a stored
 profile, or pass an inline `profile` for an ad hoc run.
+
+Use `POST /pipeline/run-batch` to execute several guest pipelines in parallel:
+
+```json
+{
+  "max_concurrency": 2,
+  "requests": [
+    { "profile_id": 1 },
+    { "profile_id": 2 },
+    {
+      "profile": {
+        "guest_name": "Leila Hart",
+        "suite": "617",
+        "booking_notes": "birthday weekend, loves food, design, hidden local places",
+        "arrival_date": "2030-05-16",
+        "stay_nights": 2,
+        "occasion": "celebration"
+      }
+    }
+  ]
+}
+```
+
+Use `POST /pipeline/jobs` for asynchronous UI runs. The endpoint returns a
+batch immediately; poll `GET /pipeline/jobs/{batch_id}` for per-guest status,
+current agents, completed agents, progress, errors, and completed artifacts.
 
 `GET /scenarios` returns three ready-made demo payloads:
 

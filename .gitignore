@@ -8,3 +8,5 @@ __pycache__
 .venv
 backend/data/*.sqlite
 backend/app/static/audio/*.mp3
+generated_letters/*
+!generated_letters/.gitkeep

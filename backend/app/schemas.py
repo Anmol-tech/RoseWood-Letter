@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -52,6 +53,11 @@ class PipelineRequest(BaseModel):
     profile_id: int | None = None
     profile: GuestProfile = Field(default_factory=GuestProfile)
     ambient_signals: list[AmbientSignal] = Field(default_factory=list)
+
+
+class PipelineBatchRequest(BaseModel):
+    requests: list[PipelineRequest] = Field(default_factory=list)
+    max_concurrency: int = Field(default=2, ge=1, le=6)
 
 
 class DemoScenario(BaseModel):
@@ -170,3 +176,53 @@ class PipelineResponse(BaseModel):
     print_artifact: PrintArtifact
     audio_script: str
     print_status: str
+
+
+class PipelineBatchResult(BaseModel):
+    index: int
+    profile_id: int | None = None
+    guest_name: str | None = None
+    suite: str | None = None
+    status: str
+    response: PipelineResponse | None = None
+    error: str | None = None
+
+
+class PipelineBatchResponse(BaseModel):
+    total: int
+    completed: int
+    failed: int
+    max_concurrency: int
+    results: list[PipelineBatchResult]
+
+
+class PipelineJobStartRequest(BaseModel):
+    requests: list[PipelineRequest] = Field(default_factory=list)
+    max_concurrency: int = Field(default=2, ge=1, le=6)
+
+
+class PipelineJobState(BaseModel):
+    job_id: str
+    batch_id: str
+    index: int
+    status: Literal["queued", "running", "completed", "failed"]
+    guest_name: str
+    suite: str
+    current_agents: list[str] = Field(default_factory=list)
+    completed_agents: list[str] = Field(default_factory=list)
+    progress: int = 0
+    response: PipelineResponse | None = None
+    error: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class PipelineJobBatchState(BaseModel):
+    batch_id: str
+    total: int
+    completed: int
+    failed: int
+    running: int
+    queued: int
+    max_concurrency: int
+    jobs: list[PipelineJobState]

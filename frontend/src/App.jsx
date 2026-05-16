@@ -1,29 +1,43 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Activity,
-  CalendarClock,
+  AlertTriangle,
+  CheckCircle2,
+  ChevronLeft,
   FileText,
   Headphones,
+  Loader2,
   Moon,
   Play,
   Printer,
   QrCode,
-  Radio,
-  Sparkles,
+  Users,
 } from "lucide-react";
 import {
-  audioScript,
   fallbackScenarios,
   letterParagraphs,
-  memorySignals,
   pipelineStages,
   visitIntent,
 } from "./data/rosewoodPipeline.js";
-import { getDemoScenarios, runRosewoodPipeline } from "./services/api.js";
+import {
+  getDemoScenarios,
+  getRosewoodPipelineJobs,
+  listRosewoodPipelineJobs,
+  startRosewoodPipelineJobs,
+} from "./services/api.js";
+
+function cleanText(text = "") {
+  return text.replace(/\u2014/g, ", ").replace(/\u2013/g, "-");
+}
+
+function getMoodClass(label = "") {
+  const normalized = label.toLowerCase();
+  if (normalized.includes("milestone")) return "mood-milestone";
+  if (normalized.includes("celebration")) return "mood-celebration";
+  return "mood-restoration";
+}
 
 function mapIntent(intent) {
   if (!intent) return visitIntent;
-
   return {
     label: intent.label,
     confidence: intent.confidence,
@@ -34,50 +48,9 @@ function mapIntent(intent) {
   };
 }
 
-function mapStages(outputs) {
-  if (!outputs?.length) return pipelineStages;
-
-  return outputs.map((output) => ({
-    name: output.agent.replace(" Agent", "").replace("Temporal Resonance Layer", "Resonance"),
-    agent: output.agent,
-    summary: output.summary,
-    statusText: `${output.title} complete`,
-  }));
-}
-
-function mapMemorySignals(response, request) {
-  if (response?.memory?.signals?.length) {
-    return [
-      ...response.memory.signals,
-      {
-        time: "Signal",
-        signal: response.memory.inferred_pattern,
-      },
-    ];
-  }
-
-  if (request?.ambient_signals?.length) {
-    return request.ambient_signals;
-  }
-
-  return memorySignals;
-}
-
-function getMoodClass(label = "") {
-  const normalized = label.toLowerCase();
-
-  if (normalized.includes("milestone")) return "mood-milestone";
-  if (normalized.includes("celebration")) return "mood-celebration";
-  return "mood-restoration";
-}
-
-function cleanText(text = "") {
-  return text.replace(/\u2014/g, ", ").replace(/\u2013/g, "-");
-}
-
-function Sidebar() {
+function Sidebar({ screen, onHome, onJobs }) {
   return (
-    <aside className="sidebar" aria-label="Rosewood Letter operations">
+    <aside className="sidebar" aria-label="Rosewood Letter">
       <div className="brand-lockup">
         <span className="brand-mark">R</span>
         <div>
@@ -85,99 +58,128 @@ function Sidebar() {
           <h1>Night Ops</h1>
         </div>
       </div>
-
       <nav className="nav-stack" aria-label="Primary">
-        <a className="nav-item active" href="#queue">
-          <CalendarClock size={17} />
-          Queue
-        </a>
-        <a className="nav-item" href="#pipeline">
-          <Activity size={17} />
-          Trace
-        </a>
-        <a className="nav-item" href="#letter">
-          <Printer size={17} />
-          Print Studio
-        </a>
-        <a className="nav-item" href="#audio">
-          <Headphones size={17} />
-          Voice Note
-        </a>
+        <button className={`nav-item ${screen === "home" ? "active" : ""}`} onClick={onHome} type="button">
+          <Users size={17} />
+          Guests
+        </button>
+        <button className={`nav-item ${screen !== "home" ? "active" : ""}`} onClick={onJobs} type="button">
+          <Moon size={17} />
+          Runs
+        </button>
       </nav>
-
       <div className="night-run">
-        <p className="eyebrow">Dawn handoff</p>
-        <strong>05:42</strong>
-        <span>Letter, QR, scent, voice script</span>
+        <p className="eyebrow">Generation window</p>
+        <strong>03:00</strong>
+        <span>Parallel artifacts before dawn</span>
       </div>
     </aside>
   );
 }
 
-function Topbar({ profile, runState }) {
-  const stateLabel = runState === "running" ? "Running overnight pass" : "Ready for 03:00 run";
+function GuestHome({ scenarios, selectedIds, onToggle, onGenerateOne, onGenerateSelected }) {
+  const selectedCount = selectedIds.length;
 
   return (
-    <section className="topbar" aria-label="Current guest context">
-      <div>
-        <p className="eyebrow">Hotel staff console</p>
-        <h2>Suite {profile.suite} · {profile.guest_name}</h2>
-      </div>
-      <div className="status-pill">
-        <span className="pulse" />
-        {stateLabel}
-      </div>
-    </section>
+    <main className="workspace">
+      <section className="page-hero">
+        <div>
+          <p className="eyebrow">Check-in guests</p>
+          <h2>Tonight's arrival list</h2>
+          <p>
+            Review the guests currently checked in or arriving tonight. Generate the
+            Rosewood Letter for one guest, or run the full overnight artifact pass.
+          </p>
+        </div>
+        <button className="primary-action large" disabled={!selectedCount} onClick={onGenerateSelected} type="button">
+          <Moon size={18} />
+          Generate {selectedCount || "selected"}
+        </button>
+      </section>
+
+      <section className="guest-grid" aria-label="Guest list">
+        {scenarios.map((scenario) => {
+          const profile = scenario.request.profile;
+          const selected = selectedIds.includes(scenario.id);
+
+          return (
+            <article className={`guest-card ${selected ? "selected" : ""}`} key={scenario.id}>
+              <header>
+                <label className="guest-check">
+                  <input
+                    checked={selected}
+                    onChange={() => onToggle(scenario.id)}
+                    type="checkbox"
+                  />
+                  <span />
+                </label>
+                <div>
+                  <p className="eyebrow">Suite {profile.suite}</p>
+                  <h3>{profile.guest_name}</h3>
+                </div>
+              </header>
+              <p>{scenario.description}</p>
+              <dl className="guest-meta">
+                <div>
+                  <dt>Occasion</dt>
+                  <dd>{profile.occasion ?? "private stay"}</dd>
+                </div>
+                <div>
+                  <dt>Nights</dt>
+                  <dd>{profile.stay_nights}</dd>
+                </div>
+                <div>
+                  <dt>Persona</dt>
+                  <dd>{profile.persona?.segment ?? "Restoration Seeker"}</dd>
+                </div>
+              </dl>
+              <button className="secondary-action" onClick={() => onGenerateOne(scenario.id)} type="button">
+                Generate this guest
+              </button>
+            </article>
+          );
+        })}
+      </section>
+    </main>
   );
 }
 
-function OperationsQueue({ profile, intent, printArtifact, audio }) {
-  const cells = [
-    ["Run window", "03:00", "Silent agent pass"],
-    ["Print handoff", printArtifact?.delivery_window ?? "06:00", printArtifact?.print_status ?? "ready"],
-    ["Scent", intent.scentProfile, "paper profile"],
-    ["Voice", audio?.voice ?? "soft and slow", audio?.status ?? "script ready"],
-  ];
+function JobList({ batch, selectedJobId, onSelect }) {
+  if (!batch) {
+    return (
+      <section className="empty-state">
+        <Moon size={28} />
+        <h2>No generation run yet</h2>
+        <p>Choose guests from the home screen and start artifact generation.</p>
+      </section>
+    );
+  }
 
   return (
-    <section className="ops-board" id="queue">
-      <div className="ops-copy">
-        <p className="eyebrow">Night operations console</p>
-        <h2>One guest, one morning artifact.</h2>
-        <p>
-          {profile.booking_notes}
-        </p>
+    <section className="job-list-panel">
+      <div className="job-list-head">
+        <div>
+          <p className="eyebrow">Generation jobs</p>
+          <h2>{batch.completed}/{batch.total} completed</h2>
+        </div>
+        <span>{batch.running} running · {batch.queued} queued · {batch.failed} failed</span>
       </div>
-      <div className="ops-grid" aria-label="Production queue">
-        {cells.map(([label, value, meta]) => (
-          <div className="ops-cell" key={label}>
-            <span>{label}</span>
-            <strong>{value}</strong>
-            <small>{meta}</small>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function ScenarioConsole({ scenarios, selectedId, onSelect }) {
-  return (
-    <section className="scenario-console" aria-label="Demo guest scenarios">
-      <div className="section-label">
-        <Radio size={17} />
-        <span>Guest Profile + Stay Context</span>
-      </div>
-      <div className="scenario-rail">
-        {scenarios.map((scenario) => (
+      <div className="job-list">
+        {batch.jobs.map((job) => (
           <button
-            className={`scenario-tab${scenario.id === selectedId ? " active" : ""}`}
-            key={scenario.id}
-            onClick={() => onSelect(scenario.id)}
+            className={`job-row ${job.status} ${job.job_id === selectedJobId ? "active" : ""}`}
+            key={job.job_id}
+            onClick={() => onSelect(job.job_id)}
             type="button"
           >
-            <strong>{scenario.title}</strong>
-            <span>{scenario.description}</span>
+            <StatusIcon status={job.status} />
+            <span className="job-main">
+              <strong>{job.guest_name}</strong>
+              <small>Suite {job.suite} · {job.current_agents[0] ?? job.completed_agents.at(-1) ?? "Waiting"}</small>
+            </span>
+            <span className="job-progress">
+              <i style={{ width: `${job.progress}%` }} />
+            </span>
           </button>
         ))}
       </div>
@@ -185,241 +187,189 @@ function ScenarioConsole({ scenarios, selectedId, onSelect }) {
   );
 }
 
-function IntentPanel({ intent }) {
-  const rows = [
-    ["Emotional state", intent.emotionalState],
-    ["Engagement style", intent.engagementStyle],
-    ["Narrative frame", intent.narrativeFrame],
-    ["Scent profile", intent.scentProfile],
-  ];
+function StatusIcon({ status }) {
+  if (status === "completed") return <CheckCircle2 className="status-icon ok" size={18} />;
+  if (status === "failed") return <AlertTriangle className="status-icon bad" size={18} />;
+  if (status === "running") return <Loader2 className="status-icon spin" size={18} />;
+  return <Moon className="status-icon" size={18} />;
+}
 
+function JobsScreen({ batch, onSelect, onBack }) {
   return (
-    <article className="panel intent-panel" id="intent">
-      <div className="panel-header">
+    <main className="workspace jobs-layout">
+      <section className="jobs-topbar">
+        <button className="secondary-action" onClick={onBack} type="button">
+          <ChevronLeft size={17} />
+          Guests
+        </button>
         <div>
-          <p className="eyebrow">Visit Intent Object</p>
-          <h3>{intent.label}</h3>
+          <p className="eyebrow">Overnight production</p>
+          <h2>Artifact generation queue</h2>
         </div>
-        <span className="confidence">{intent.confidence}%</span>
-      </div>
-      <dl className="intent-list">
-        {rows.map(([label, value]) => (
-          <div key={label}>
-            <dt>{label}</dt>
-            <dd>{value}</dd>
-          </div>
-        ))}
-      </dl>
-    </article>
+      </section>
+      <JobList batch={batch} selectedJobId="" onSelect={onSelect} />
+    </main>
   );
 }
 
-function MemoryPanel({ signals }) {
+function DetailScreen({ batch, selectedJobId, onBackToRuns, onBackToGuests }) {
+  const selectedJob = batch?.jobs.find((job) => job.job_id === selectedJobId) ?? batch?.jobs[0];
+
   return (
-    <article className="panel memory-panel">
-      <div className="panel-header">
+    <main className="workspace detail-layout">
+      <section className="jobs-topbar">
+        <button className="secondary-action" onClick={onBackToRuns} type="button">
+          <ChevronLeft size={17} />
+          Runs
+        </button>
         <div>
-          <p className="eyebrow">Memory Agent</p>
-          <h3>Ambient signals</h3>
+          <p className="eyebrow">Job detail</p>
+          <h2>{selectedJob?.guest_name ?? "Generation output"}</h2>
         </div>
-        <span className="soft-tag">zero survey</span>
-      </div>
-      <div className="memory-stream">
-        {signals.map((item) => (
-          <p key={`${item.time}-${item.signal}`}>
-            <strong>{item.time}</strong> {item.signal}
-          </p>
-        ))}
-      </div>
-    </article>
+        <button className="secondary-action" onClick={onBackToGuests} type="button">
+          Guests
+        </button>
+      </section>
+      <JobDetail job={selectedJob} />
+    </main>
   );
 }
 
-function PipelinePanel({ stages, onRun, runState }) {
-  const [activeStage, setActiveStage] = useState(1);
-  const isRunning = runState === "running";
-
-  const buttonText = useMemo(() => {
-    if (runState === "error") return "Retry overnight run";
-    if (!isRunning) return "Run 03:00 pass";
-    return stages[activeStage]?.statusText ?? "Pipeline complete";
-  }, [activeStage, isRunning, runState, stages]);
-
-  async function runPipeline() {
-    setActiveStage(0);
-
-    stages.forEach((_, index) => {
-      window.setTimeout(() => {
-        setActiveStage(index);
-      }, index * 650);
-    });
-
-    await onRun();
-    setActiveStage(stages.length);
+function JobDetail({ job }) {
+  if (!job) {
+    return (
+      <section className="empty-state">
+        <FileText size={28} />
+        <h2>Select a job</h2>
+        <p>The generated letter and production artifacts will appear here.</p>
+      </section>
+    );
   }
 
+  if (job.status === "failed") {
+    return (
+      <section className="detail-panel failed-run">
+        <p className="eyebrow">Job failed</p>
+        <h2>{job.guest_name}</h2>
+        <p>{job.error ?? "The backend returned an error for this guest."}</p>
+      </section>
+    );
+  }
+
+  if (job.status !== "completed") {
+    return <RunningJobDetail job={job} />;
+  }
+
+  return <CompletedJobDetail job={job} />;
+}
+
+function RunningJobDetail({ job }) {
+  const completed = new Set(job.completed_agents);
+
   return (
-    <section className="panel pipeline-panel" id="pipeline">
-      <div className="panel-header">
-        <div>
-          <p className="eyebrow">Execution trace</p>
-          <h3>3AM agent run</h3>
+    <section className="detail-panel running-job">
+      <div className="running-stage">
+        <div className="running-orbit" aria-hidden="true">
+          <span />
+          <span />
+          <span />
         </div>
-        <button className="primary-action" type="button" onClick={runPipeline} disabled={isRunning}>
-          <Moon size={17} />
-          {buttonText}
-        </button>
+        <div>
+          <p className="eyebrow">Live pipeline</p>
+          <h2>{job.guest_name}</h2>
+          <p>
+            {job.current_agents.length
+              ? `${job.current_agents.join(", ")} working now.`
+              : "Waiting for the next agent group."}
+          </p>
+        </div>
       </div>
-
-      <div className="pipeline" aria-label="Agent pipeline stages">
-        {stages.map((stage, index) => {
-          const complete = activeStage > index;
-          const active = activeStage === index;
-
-          return (
-            <div
-              className={`agent-node${complete ? " complete" : ""}${active ? " active" : ""}`}
-              data-agent={stage.agent}
-              key={stage.agent}
-            >
-              <span className="node-index">{String(index + 1).padStart(2, "0")}</span>
-              <h4>{stage.name}</h4>
-              <p>{stage.summary}</p>
-            </div>
-          );
-        })}
+      <div className="large-progress">
+        <i style={{ width: `${job.progress}%` }} />
+      </div>
+      <div className="agent-timeline">
+        {pipelineStages.map((stage) => (
+          <div className={completed.has(stage.agent) ? "done" : ""} key={stage.agent}>
+            <span>{stage.name}</span>
+            <small>{completed.has(stage.agent) ? "complete" : "pending"}</small>
+          </div>
+        ))}
+        <div className={completed.has("Audio Agent") ? "done" : ""}>
+          <span>Audio</span>
+          <small>{completed.has("Audio Agent") ? "complete" : "pending"}</small>
+        </div>
       </div>
     </section>
   );
 }
 
-function LetterPreview({ letter, intent }) {
+function CompletedJobDetail({ job }) {
+  const response = job.response;
+  const intent = mapIntent(response?.visit_intent);
+  const moodClass = getMoodClass(intent.label);
+  const letter = response?.letter;
   const paragraphs = (letter?.paragraphs ?? letterParagraphs).map(cleanText);
-  const moodClass = getMoodClass(intent?.label);
 
   return (
-    <article className={`letter-preview ${moodClass}`} id="letter" aria-label="Printed letter preview">
-      <header className="letter-head">
-        <div className="letter-brand">
-          <span>ROSEWOOD</span>
-          <small>{letter?.date_line ?? "Morning letter · May 17, 2030"}</small>
-        </div>
-      </header>
-      <div className="letter-body">
-        <p className="salutation">{cleanText(letter?.salutation ?? "Good morning,")}</p>
-        {paragraphs.map((paragraph) => (
-          <p key={paragraph}>{paragraph}</p>
-        ))}
-      </div>
-      <footer className="letter-foot">
-        <div className="qr-mark" aria-label="QR code placeholder" />
-        <span>{letter?.qr_caption ?? "A personal note from Rosewood."}</span>
-      </footer>
-    </article>
-  );
-}
-
-function ArtifactSpec({ printArtifact }) {
-  const specs = [
-    ["Paper", "scented cotton stock"],
-    ["Scent", printArtifact?.paper_scent ?? visitIntent.scentProfile],
-    ["Voice QR", printArtifact?.qr_url ?? "private note pending"],
-    ["Handoff", printArtifact?.delivery_window ?? "06:00"],
-  ];
-
-  return (
-    <article className="panel spec-panel">
-      <div className="panel-header">
+    <section className={`detail-panel result-detail ${moodClass}`}>
+      <div className="result-header">
         <div>
-          <p className="eyebrow">Letter Composer</p>
-          <h3>Print artifact studio</h3>
+          <p className="eyebrow">Generated artifact</p>
+          <h2>{job.guest_name}</h2>
+          <span>Suite {job.suite} · {intent.label} · {intent.confidence}%</span>
         </div>
-        <FileText size={20} />
+        <span className="status-pill">
+          <CheckCircle2 size={16} />
+          Complete
+        </span>
       </div>
-      <dl className="spec-list">
-        {specs.map(([label, value]) => (
-          <div key={label}>
-            <dt>{label}</dt>
-            <dd>{value}</dd>
+
+      <div className="result-grid">
+        <article className="letter-preview compact">
+          <header className="letter-head">
+            <div className="letter-brand">
+              <span>ROSEWOOD</span>
+              <small>{letter?.date_line ?? "Morning letter · May 17, 2030"}</small>
+            </div>
+          </header>
+          <div className="letter-body">
+            <p className="salutation">{cleanText(letter?.salutation ?? "Good morning,")}</p>
+            {paragraphs.map((paragraph) => (
+              <p key={paragraph}>{paragraph}</p>
+            ))}
           </div>
-        ))}
-      </dl>
-    </article>
+          <footer className="letter-foot">
+            <div className="qr-mark" aria-label="QR code placeholder" />
+            <span>{letter?.qr_caption ?? "A personal note from Rosewood."}</span>
+          </footer>
+        </article>
+
+        <aside className="artifact-stack">
+          <ArtifactCard icon={<Printer size={18} />} label="Print" value={response?.print_artifact.print_status} />
+          <ArtifactCard icon={<Headphones size={18} />} label="Voice" value={response?.audio.voice} />
+          <ArtifactCard icon={<QrCode size={18} />} label="QR" value={response?.print_artifact.qr_url} />
+          <article className="artifact-card audio-card">
+            <div>
+              <p className="eyebrow">Audio script</p>
+              <p>"{cleanText(response?.audio_script ?? "")}"</p>
+            </div>
+            <button type="button" aria-label="Play audio preview">
+              <Play size={16} fill="currentColor" />
+            </button>
+          </article>
+        </aside>
+      </div>
+    </section>
   );
 }
 
-function AudioPanel({ audio, script }) {
+function ArtifactCard({ icon, label, value }) {
   return (
-    <article className="panel" id="audio">
-      <div className="panel-header">
-        <div>
-          <p className="eyebrow">Audio Script Agent</p>
-          <h3>Voice note</h3>
-        </div>
-        <span className="soft-tag">{audio?.voice ?? "soft · slow"}</span>
-      </div>
-      <p className="script">"{cleanText(script)}"</p>
-      <div className="audio-bar">
-        <button type="button" aria-label="Play audio preview">
-          <Play size={17} fill="currentColor" />
-        </button>
-        <span />
-      </div>
-    </article>
-  );
-}
-
-function CrosswordPanel({ crossword }) {
-  const cells = [
-    false, false, true, false, false,
-    true, false, false, false, true,
-    false, false, false, true, false,
-    false, true, false, false, false,
-    true, false, false, false, false,
-  ];
-  const clues = crossword?.clues?.slice(0, 3) ?? [];
-
-  return (
-    <article className="panel">
-      <div className="panel-header">
-        <div>
-          <p className="eyebrow">Crossword Agent</p>
-          <h3>Hidden itinerary</h3>
-        </div>
-        <span className="soft-tag">{clues.length || 4} clues</span>
-      </div>
-      <div className="crossword" aria-label="Crossword preview">
-        {cells.map((filled, index) => (
-          <span className={filled ? "filled" : ""} key={index} />
-        ))}
-      </div>
-      {clues.length ? (
-        <ul className="clue-list">
-          {clues.map((clue) => (
-            <li key={`${clue.clue}-${clue.answer}`}>
-              <span>{clue.clue}</span>
-              <strong>{clue.answer}</strong>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </article>
-  );
-}
-
-function QRPanel({ printArtifact }) {
-  return (
-    <article className="panel qr-panel">
-      <div className="panel-header">
-        <div>
-          <p className="eyebrow">QR Code</p>
-          <h3>Guest handoff</h3>
-        </div>
-        <QrCode size={20} />
-      </div>
-      <div className="handoff-row">
-        <div className="qr-mark large" aria-label="QR code placeholder" />
-        <p>{printArtifact?.qr_caption ?? "A personal note from Rosewood."}</p>
+    <article className="artifact-card">
+      {icon}
+      <div>
+        <p className="eyebrow">{label}</p>
+        <strong>{value ?? "ready"}</strong>
       </div>
     </article>
   );
@@ -427,88 +377,120 @@ function QRPanel({ printArtifact }) {
 
 export default function App() {
   const [scenarios, setScenarios] = useState(fallbackScenarios);
-  const [selectedScenarioId, setSelectedScenarioId] = useState(fallbackScenarios[0].id);
-  const [pipelineResponse, setPipelineResponse] = useState(null);
-  const [runState, setRunState] = useState("idle");
-  const [runError, setRunError] = useState("");
+  const [selectedIds, setSelectedIds] = useState(fallbackScenarios.map((scenario) => scenario.id));
+  const [screen, setScreen] = useState("home");
+  const [batch, setBatch] = useState(null);
+  const [selectedJobId, setSelectedJobId] = useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => {
     getDemoScenarios()
       .then((items) => {
         setScenarios(items);
-        setSelectedScenarioId((current) => (items.some((item) => item.id === current) ? current : items[0].id));
+        setSelectedIds(items.map((scenario) => scenario.id));
       })
       .catch(() => {
         setScenarios(fallbackScenarios);
       });
+
+    listRosewoodPipelineJobs()
+      .then((batches) => {
+        if (batches.length) {
+          setBatch(batches[0]);
+          setSelectedJobId(batches[0].jobs[0]?.job_id ?? "");
+        }
+      })
+      .catch(() => {});
   }, []);
 
-  const selectedScenario = scenarios.find((scenario) => scenario.id === selectedScenarioId) ?? scenarios[0];
-  const selectedRequest = selectedScenario.request;
-  const profile = pipelineResponse?.profile ?? selectedRequest.profile;
-  const intent = mapIntent(pipelineResponse?.visit_intent);
-  const stages = mapStages(pipelineResponse?.outputs);
-  const signals = mapMemorySignals(pipelineResponse, selectedRequest);
-  const currentAudioScript = pipelineResponse?.audio_script ?? audioScript;
-  const moodClass = getMoodClass(intent.label);
+  useEffect(() => {
+    if (!batch?.batch_id) return undefined;
+    const done = batch.total > 0 && batch.completed + batch.failed === batch.total;
+    if (done) return undefined;
 
-  function selectScenario(scenarioId) {
-    setSelectedScenarioId(scenarioId);
-    setPipelineResponse(null);
-    setRunState("idle");
-    setRunError("");
+    const interval = window.setInterval(async () => {
+      try {
+        const nextBatch = await getRosewoodPipelineJobs(batch.batch_id);
+        setBatch(nextBatch);
+        setSelectedJobId((current) => current || nextBatch.jobs[0]?.job_id || "");
+      } catch (pollError) {
+        setError(pollError.message);
+      }
+    }, 1200);
+
+    return () => window.clearInterval(interval);
+  }, [batch]);
+
+  const moodClass = useMemo(() => {
+    const selectedJob = batch?.jobs.find((job) => job.job_id === selectedJobId);
+    return getMoodClass(selectedJob?.response?.visit_intent?.label);
+  }, [batch, selectedJobId]);
+
+  function toggleGuest(id) {
+    setSelectedIds((current) => (
+      current.includes(id)
+        ? current.filter((item) => item !== id)
+        : [...current, id]
+    ));
   }
 
-  async function handleRunPipeline() {
-    setRunState("running");
-    setRunError("");
+  async function startGeneration(ids) {
+    const requests = scenarios
+      .filter((scenario) => ids.includes(scenario.id))
+      .map((scenario) => scenario.request);
+
+    if (!requests.length) return;
+
+    setError("");
+    setScreen("jobs");
 
     try {
-      const response = await runRosewoodPipeline(selectedRequest);
-      setPipelineResponse(response);
-      setRunState("complete");
-    } catch (error) {
-      setRunError(error.message);
-      setRunState("error");
+      const started = await startRosewoodPipelineJobs({
+        max_concurrency: Math.min(3, requests.length),
+        requests,
+      });
+      setBatch(started);
+      setSelectedJobId(started.jobs[0]?.job_id ?? "");
+    } catch (startError) {
+      setError(startError.message);
     }
   }
 
   return (
     <div className={`app-shell ${moodClass}`}>
-      <Sidebar />
-      <main className="workspace">
-        <Topbar profile={profile} runState={runState} />
-        <OperationsQueue
-          audio={pipelineResponse?.audio}
-          intent={intent}
-          printArtifact={pipelineResponse?.print_artifact}
-          profile={profile}
-        />
-
-        <ScenarioConsole
-          onSelect={selectScenario}
+      <Sidebar
+        onHome={() => setScreen("home")}
+        onJobs={() => setScreen("jobs")}
+        screen={screen}
+      />
+      {screen === "home" ? (
+        <GuestHome
+          onGenerateOne={(id) => startGeneration([id])}
+          onGenerateSelected={() => startGeneration(selectedIds)}
+          onToggle={toggleGuest}
           scenarios={scenarios}
-          selectedId={selectedScenarioId}
+          selectedIds={selectedIds}
         />
-
-        <section className="grid-two">
-          <IntentPanel intent={intent} />
-          <MemoryPanel signals={signals} />
-        </section>
-
-        <PipelinePanel stages={stages} onRun={handleRunPipeline} runState={runState} />
-        {runError ? <p className="api-error">Backend unavailable: {runError}</p> : null}
-
-        <section className="studio-grid">
-          <LetterPreview letter={pipelineResponse?.letter} intent={intent} />
-          <div className="right-stack">
-            <ArtifactSpec printArtifact={pipelineResponse?.print_artifact} />
-            <AudioPanel audio={pipelineResponse?.audio} script={currentAudioScript} />
-            <CrosswordPanel crossword={pipelineResponse?.crossword} />
-            <QRPanel printArtifact={pipelineResponse?.print_artifact} />
-          </div>
-        </section>
-      </main>
+      ) : (
+        screen === "jobs" ? (
+          <JobsScreen
+            batch={batch}
+            onBack={() => setScreen("home")}
+            onSelect={(jobId) => {
+              setSelectedJobId(jobId);
+              setScreen("detail");
+            }}
+          />
+        ) : (
+          <DetailScreen
+            batch={batch}
+            onBackToGuests={() => setScreen("home")}
+            onBackToRuns={() => setScreen("jobs")}
+            selectedJobId={selectedJobId}
+          />
+        )
+      )}
+      {error ? <p className="toast-error">{error}</p> : null}
     </div>
   );
 }

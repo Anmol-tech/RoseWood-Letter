@@ -52,10 +52,32 @@ Without keys, the backend uses deterministic demo fallbacks.
 - `GET /profiles`
 - `GET /profiles/{profile_id}`
 - `POST /pipeline/run`
+- `POST /pipeline/run-batch`
+- `POST /pipeline/jobs`
+- `GET /pipeline/jobs/{batch_id}`
+- `GET /pipeline/jobs/{batch_id}/{job_id}`
 
 `POST /pipeline/run` accepts either an inline `profile` or a stored `profile_id`.
 Stored customer profiles and personas are saved in SQLite at
 `backend/data/rosewood.sqlite` when the backend starts or profile APIs are used.
+
+`POST /pipeline/run-batch` runs multiple guests in one request with bounded
+parallelism:
+
+```json
+{
+  "max_concurrency": 2,
+  "requests": [
+    { "profile_id": 1 },
+    { "profile_id": 2 }
+  ]
+}
+```
+
+Use `POST /pipeline/jobs` for UI-friendly asynchronous generation. It returns a
+batch id immediately, and the frontend polls `GET /pipeline/jobs/{batch_id}` to
+show each guest job's current agents, completed agents, progress, and final
+artifact response.
 Composed letters are saved in `generated_letters/` as Markdown and HTML each time
 the pipeline runs.
 
