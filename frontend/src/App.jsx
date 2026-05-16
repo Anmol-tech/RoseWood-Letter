@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
+  ChevronDown,
   ChevronLeft,
   FileText,
   Headphones,
@@ -349,6 +350,75 @@ function mergeJobs(incoming, existing) {
   );
 }
 
+const JOBS_PAGE_SIZE = 5;
+
+function LocationJobGroup({ location, jobs, selectedJobId, onSelect }) {
+  const [open, setOpen] = useState(true);
+  const [visibleCount, setVisibleCount] = useState(JOBS_PAGE_SIZE);
+  const visible = jobs.slice(0, visibleCount);
+  const hasMore = visibleCount < jobs.length;
+
+  return (
+    <section className="hotel-job-group" key={location}>
+      <button
+        className="hotel-job-head collapsible"
+        onClick={() => setOpen((o) => !o)}
+        type="button"
+        aria-expanded={open}
+      >
+        <div>
+          <p className="eyebrow">Rosewood location</p>
+          <h3>{location}</h3>
+        </div>
+        <span className="hotel-job-head-right">
+          <span className="hotel-job-count">{jobs.length} job{jobs.length !== 1 ? "s" : ""}</span>
+          <ChevronDown
+            className={`collapse-chevron ${open ? "open" : ""}`}
+            size={16}
+          />
+        </span>
+      </button>
+
+      {open && (
+        <>
+          <div className="job-list">
+            {visible.map((job) => (
+              <button
+                className={`job-row ${job.status} ${job.job_id === selectedJobId ? "active" : ""}`}
+                key={job.job_id}
+                onClick={() => onSelect(job.job_id)}
+                type="button"
+              >
+                <StatusIcon status={job.status} />
+                <span className="job-main">
+                  <strong>{job.guest_name}</strong>
+                  <small>
+                    {job.location} · Suite {job.suite} · {formatRunTimestamp(job.created_at)} · {job.current_agents[0] ?? job.completed_agents.at(-1) ?? "Waiting"}
+                  </small>
+                </span>
+                <span className="job-progress">
+                  <i style={{ width: `${job.progress}%` }} />
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {hasMore && (
+            <button
+              className="load-more-btn"
+              onClick={() => setVisibleCount((c) => c + JOBS_PAGE_SIZE)}
+              type="button"
+            >
+              Load {Math.min(JOBS_PAGE_SIZE, jobs.length - visibleCount)} more
+              <span className="load-more-hint">· {jobs.length - visibleCount} remaining</span>
+            </button>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
+
 function JobList({ jobs, selectedJobId, onSelect }) {
   if (!jobs.length) {
     return (
@@ -373,36 +443,13 @@ function JobList({ jobs, selectedJobId, onSelect }) {
         <span>{jobs.filter((job) => job.status === "running").length} running · {jobs.filter((job) => job.status === "completed").length} complete</span>
       </div>
       {locations.map((location) => (
-        <section className="hotel-job-group" key={location}>
-          <div className="hotel-job-head">
-            <div>
-              <p className="eyebrow">Rosewood location</p>
-              <h3>{location}</h3>
-            </div>
-            <span>{groupedJobs[location].length} jobs</span>
-          </div>
-          <div className="job-list">
-            {groupedJobs[location].map((job) => (
-              <button
-                className={`job-row ${job.status} ${job.job_id === selectedJobId ? "active" : ""}`}
-                key={job.job_id}
-                onClick={() => onSelect(job.job_id)}
-                type="button"
-              >
-                <StatusIcon status={job.status} />
-                <span className="job-main">
-                  <strong>{job.guest_name}</strong>
-                  <small>
-                    {job.location} · Suite {job.suite} · {formatRunTimestamp(job.created_at)} · {job.current_agents[0] ?? job.completed_agents.at(-1) ?? "Waiting"}
-                  </small>
-                </span>
-                <span className="job-progress">
-                  <i style={{ width: `${job.progress}%` }} />
-                </span>
-              </button>
-            ))}
-          </div>
-        </section>
+        <LocationJobGroup
+          key={location}
+          location={location}
+          jobs={groupedJobs[location]}
+          selectedJobId={selectedJobId}
+          onSelect={onSelect}
+        />
       ))}
     </section>
   );
