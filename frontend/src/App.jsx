@@ -10,11 +10,49 @@ import {
 } from "lucide-react";
 import {
   audioScript,
+  defaultPipelineRequest,
   letterParagraphs,
   memorySignals,
   pipelineStages,
   visitIntent,
 } from "./data/rosewoodPipeline.js";
+import { runRosewoodPipeline } from "./services/api.js";
+
+function mapIntent(intent) {
+  if (!intent) return visitIntent;
+
+  return {
+    label: intent.label,
+    confidence: intent.confidence,
+    emotionalState: intent.emotional_state,
+    engagementStyle: intent.engagement_style,
+    narrativeFrame: intent.narrative_frame,
+    scentProfile: intent.scent_profile,
+  };
+}
+
+function mapStages(outputs) {
+  if (!outputs?.length) return pipelineStages;
+
+  return outputs.map((output) => ({
+    name: output.agent.replace(" Agent", "").replace("Temporal Resonance Layer", "Resonance"),
+    agent: output.agent,
+    summary: output.summary,
+    statusText: `${output.title} complete`,
+  }));
+}
+
+function mapMemorySignals(signals) {
+  if (!signals?.length) return memorySignals;
+
+  return [
+    ...signals,
+    {
+      time: "Signal",
+      signal: "Guest wanted space first, care second.",
+    },
+  ];
+}
 
 function Sidebar() {
   return (
@@ -91,12 +129,12 @@ function HeroBand() {
   );
 }
 
-function IntentPanel() {
+function IntentPanel({ intent }) {
   const rows = [
-    ["Emotional state", visitIntent.emotionalState],
-    ["Engagement style", visitIntent.engagementStyle],
-    ["Narrative frame", visitIntent.narrativeFrame],
-    ["Scent profile", visitIntent.scentProfile],
+    ["Emotional state", intent.emotionalState],
+    ["Engagement style", intent.engagementStyle],
+    ["Narrative frame", intent.narrativeFrame],
+    ["Scent profile", intent.scentProfile],
   ];
 
   return (
@@ -104,9 +142,9 @@ function IntentPanel() {
       <div className="panel-header">
         <div>
           <p className="eyebrow">Visit Intent Object</p>
-          <h3>{visitIntent.label}</h3>
+          <h3>{intent.label}</h3>
         </div>
-        <span className="confidence">{visitIntent.confidence}%</span>
+        <span className="confidence">{intent.confidence}%</span>
       </div>
       <dl className="intent-list">
         {rows.map(([label, value]) => (
@@ -120,7 +158,7 @@ function IntentPanel() {
   );
 }
 
-function MemoryPanel() {
+function MemoryPanel({ signals }) {
   return (
     <article className="panel memory-panel">
       <div className="panel-header">
@@ -131,7 +169,7 @@ function MemoryPanel() {
         <span className="soft-tag">Day 2 seed</span>
       </div>
       <div className="memory-stream">
-        {memorySignals.map((item) => (
+        {signals.map((item) => (
           <p key={`${item.time}-${item.signal}`}>
             <strong>{item.time}</strong> {item.signal}
           </p>
@@ -141,29 +179,27 @@ function MemoryPanel() {
   );
 }
 
-function PipelinePanel() {
+function PipelinePanel({ stages, onRun, runState }) {
   const [activeStage, setActiveStage] = useState(1);
-  const [isRunning, setIsRunning] = useState(false);
+  const isRunning = runState === "running";
 
   const buttonText = useMemo(() => {
+    if (runState === "error") return "Retry pipeline";
     if (!isRunning) return "Run simulation";
-    return pipelineStages[activeStage]?.statusText ?? "Pipeline complete";
-  }, [activeStage, isRunning]);
+    return stages[activeStage]?.statusText ?? "Pipeline complete";
+  }, [activeStage, isRunning, runState, stages]);
 
-  function runPipeline() {
-    setIsRunning(true);
+  async function runPipeline() {
     setActiveStage(0);
 
-    pipelineStages.forEach((_, index) => {
+    stages.forEach((_, index) => {
       window.setTimeout(() => {
         setActiveStage(index);
       }, index * 650);
     });
 
-    window.setTimeout(() => {
-      setIsRunning(false);
-      setActiveStage(pipelineStages.length);
-    }, pipelineStages.length * 650);
+    await onRun();
+    setActiveStage(stages.length);
   }
 
   return (
@@ -180,7 +216,7 @@ function PipelinePanel() {
       </div>
 
       <div className="pipeline" aria-label="Agent pipeline stages">
-        {pipelineStages.map((stage, index) => {
+        {stages.map((stage, index) => {
           const complete = activeStage > index;
           const active = activeStage === index;
 
@@ -201,28 +237,30 @@ function PipelinePanel() {
   );
 }
 
-function LetterPreview() {
+function LetterPreview({ letter }) {
+  const paragraphs = letter?.paragraphs ?? letterParagraphs;
+
   return (
     <article className="letter-preview" id="letter" aria-label="Printed letter preview">
       <header className="letter-head">
         <span>ROSEWOOD</span>
-        <p>Morning letter · May 17, 2030</p>
+        <p>{letter?.date_line ?? "Morning letter · May 17, 2030"}</p>
       </header>
       <div className="letter-body">
-        <p className="salutation">Good morning,</p>
-        {letterParagraphs.map((paragraph) => (
+        <p className="salutation">{letter?.salutation ?? "Good morning,"}</p>
+        {paragraphs.map((paragraph) => (
           <p key={paragraph}>{paragraph}</p>
         ))}
       </div>
       <footer className="letter-foot">
         <div className="qr-mark" aria-label="QR code placeholder" />
-        <span>A personal note from Rosewood.</span>
+        <span>{letter?.qr_caption ?? "A personal note from Rosewood."}</span>
       </footer>
     </article>
   );
 }
 
-function AudioPanel() {
+function AudioPanel({ script }) {
   return (
     <article className="panel" id="audio">
       <div className="panel-header">
@@ -232,7 +270,7 @@ function AudioPanel() {
         </div>
         <span className="soft-tag">soft · slow</span>
       </div>
-      <p className="script">“{audioScript}”</p>
+      <p className="script">“{script}”</p>
       <div className="audio-bar">
         <button type="button" aria-label="Play audio preview">
           <Play size={17} fill="currentColor" />
@@ -291,6 +329,29 @@ function CrosswordPanel() {
 }
 
 export default function App() {
+  const [pipelineResponse, setPipelineResponse] = useState(null);
+  const [runState, setRunState] = useState("idle");
+  const [runError, setRunError] = useState("");
+
+  const intent = mapIntent(pipelineResponse?.visit_intent);
+  const stages = mapStages(pipelineResponse?.outputs);
+  const signals = mapMemorySignals(defaultPipelineRequest.ambient_signals);
+  const currentAudioScript = pipelineResponse?.audio_script ?? audioScript;
+
+  async function handleRunPipeline() {
+    setRunState("running");
+    setRunError("");
+
+    try {
+      const response = await runRosewoodPipeline(defaultPipelineRequest);
+      setPipelineResponse(response);
+      setRunState("complete");
+    } catch (error) {
+      setRunError(error.message);
+      setRunState("error");
+    }
+  }
+
   return (
     <div className="app-shell">
       <Sidebar />
@@ -299,22 +360,23 @@ export default function App() {
         <HeroBand />
 
         <section className="grid-two">
-          <IntentPanel />
-          <MemoryPanel />
+          <IntentPanel intent={intent} />
+          <MemoryPanel signals={signals} />
         </section>
 
-        <PipelinePanel />
+        <PipelinePanel stages={stages} onRun={handleRunPipeline} runState={runState} />
+        {runError ? <p className="api-error">Backend unavailable: {runError}</p> : null}
 
         <section className="grid-two letter-grid">
-          <LetterPreview />
+          <LetterPreview letter={pipelineResponse?.letter} />
           <div className="right-stack">
-            <AudioPanel />
+            <AudioPanel script={currentAudioScript} />
             <CrosswordPanel />
             <article className="panel build-next">
               <Leaf size={22} />
               <div>
                 <p className="eyebrow">Next build target</p>
-                <h3>Swap static fixtures for real agent output.</h3>
+                <h3>Add the staff input panel and Memory Agent.</h3>
               </div>
             </article>
           </div>

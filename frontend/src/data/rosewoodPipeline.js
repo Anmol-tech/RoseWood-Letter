@@ -7,6 +7,27 @@ export const visitIntent = {
   scentProfile: "Cedar, damp earth, morning fog",
 };
 
+export const defaultPipelineRequest = {
+  profile: {
+    guest_name: "Guest",
+    suite: "804",
+    booking_notes: "quiet weekend",
+    arrival_date: "2030-05-16",
+    stay_nights: 2,
+    occasion: null,
+  },
+  ambient_signals: [
+    {
+      time: "05:47",
+      signal: "Letter QR scanned early, then no further actions.",
+    },
+    {
+      time: "11:18",
+      signal: "Spa booking made after a quiet first morning.",
+    },
+  ],
+};
+
 export const memorySignals = [
   {
     time: "05:47",

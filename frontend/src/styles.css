@@ -351,6 +351,16 @@ h4 {
   font-weight: 800;
 }
 
+.api-error {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border: 1px solid rgba(255, 120, 120, 0.28);
+  border-radius: 0.5rem;
+  background: rgba(255, 120, 120, 0.08);
+  color: #ffd0d0;
+  font-size: 0.9rem;
+}
+
 .pipeline {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
