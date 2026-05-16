@@ -14,6 +14,7 @@ from app.pipeline import pipeline
 from app.scenarios import DEMO_SCENARIOS
 from app.services import anthropic_client, delivery_service, elevenlabs_client
 from app.schemas import (
+    DeliveryChannelState,
     DemoScenario,
     DeliveryRequest,
     GuestReservationRequest,
@@ -271,9 +272,19 @@ async def create_guest_reservation(request: GuestReservationRequest) -> GuestRes
     if not request.options:
         raise HTTPException(status_code=400, detail="Reservation options are missing")
 
-    email_to = request.email_to or job.response.profile.email
+    email_to = request.email_to or job.response.profile.email or job.delivery.email.to
+
     if not email_to:
-        raise HTTPException(status_code=400, detail="Reservation email recipient is missing")
+        # No email address — record the reservation without delivery.
+        return GuestReservationResponse(
+            status="recorded",
+            message="Reservation request recorded. No email address on file — Rosewood will follow up directly.",
+            email=DeliveryChannelState(
+                status="skipped",
+                provider="none",
+                error="No guest email address available.",
+            ),
+        )
 
     email = await delivery_service.send_reservation_email(
         job=job,

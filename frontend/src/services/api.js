@@ -104,7 +104,14 @@ export async function createGuestReservation(payload) {
   });
 
   if (!response.ok) {
-    throw new Error(`Reservation request failed with ${response.status}`);
+    let detail = `Reservation request failed with ${response.status}`;
+    try {
+      const body = await response.json();
+      if (body?.detail) detail = body.detail;
+    } catch {
+      // ignore parse errors
+    }
+    throw new Error(detail);
   }
 
   return response.json();

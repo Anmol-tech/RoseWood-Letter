@@ -957,7 +957,7 @@ function ReservationPanel({ job, options }) {
     try {
       const result = await createGuestReservation({
         job_id: job.job_id,
-        email_to: job.response?.profile?.email,
+        email_to: job.response?.profile?.email || job.delivery?.email?.to || null,
         options: optionsToReserve,
       });
       setReservationStatus(result.message || successMessage);
