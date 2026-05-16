@@ -2,6 +2,7 @@ import json
 from datetime import datetime
 from uuid import uuid4
 
+from app.location_distances import lookup_suggested_location_distance_sync
 from app.db import get_connection, init_db
 from app.schemas import DeliveryArtifact, PipelineJobBatchState, PipelineJobState, PipelineRequest, PipelineResponse
 
@@ -207,12 +208,19 @@ class PipelineJobStore:
         if row is None:
             return None
 
-        return self._row_to_job(row)
+        return self._row_to_job(row, enrich_distance=True)
 
-    def _row_to_job(self, row) -> PipelineJobState:
+    def _row_to_job(self, row, enrich_distance: bool = False) -> PipelineJobState:
         response = None
         if row["response_json"]:
             response = PipelineResponse.model_validate(json.loads(row["response_json"]))
+            if enrich_distance and response.discovery.distance_hint is None:
+                response.discovery.distance_hint = lookup_suggested_location_distance_sync(
+                    response.profile.property_location,
+                    response.discovery.recommendation,
+                    response.discovery.place_name,
+                )
+
         delivery = DeliveryArtifact()
         if row["delivery_json"]:
             delivery = DeliveryArtifact.model_validate(json.loads(row["delivery_json"]))

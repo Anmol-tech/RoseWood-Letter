@@ -106,11 +106,24 @@ class RhythmArc(BaseModel):
     emotional_shape: str
 
 
+class SuggestedLocationDistance(BaseModel):
+    place_name: str
+    property_location: str
+    distance_label: str
+    travel_time_label: str
+    travel_mode: str
+    note: str
+    confidence: Literal["geocoded_route", "geocoded_estimate"] = "geocoded_estimate"
+    aliases: list[str] = Field(default_factory=list)
+
+
 class DiscoveryRecommendation(BaseModel):
     title: str
     recommendation: str
     reason: str
     guest_fit: str
+    place_name: str | None = None
+    distance_hint: SuggestedLocationDistance | None = None
 
 
 class MemoryInsight(BaseModel):

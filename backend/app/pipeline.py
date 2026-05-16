@@ -20,6 +20,7 @@ from app.agents import (
     VoiceAgent,
     WorldAgent,
 )
+from app.location_distances import lookup_suggested_location_distance
 from app.schemas import (
     AgentOutput,
     AudioArtifact,
@@ -230,6 +231,12 @@ class RosewoodPipeline:
                 recommendation=discovery_output["recommendation"],
                 reason=discovery_output["reason"],
                 guest_fit=discovery_output["guest_fit"],
+                place_name=discovery_output.get("place_name"),
+                distance_hint=await lookup_suggested_location_distance(
+                    request.profile.property_location,
+                    discovery_output["recommendation"],
+                    discovery_output.get("place_name"),
+                ),
             ),
             memory=MemoryInsight(
                 signals=request.ambient_signals,

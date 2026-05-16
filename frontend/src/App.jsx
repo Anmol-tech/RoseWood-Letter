@@ -7,6 +7,7 @@ import {
   Headphones,
   Loader2,
   Mail,
+  MapPin,
   Moon,
   Play,
   Printer,
@@ -55,6 +56,15 @@ function getMoodClass(label = "") {
   if (normalized.includes("celebration")) return "mood-celebration";
   if (normalized.includes("conference") || normalized.includes("event")) return "mood-event";
   return "mood-restoration";
+}
+
+function findDistanceAlias(paragraph = "", distanceHint) {
+  const aliases = [distanceHint?.place_name, ...(distanceHint?.aliases ?? [])]
+    .filter(Boolean)
+    .sort((a, b) => b.length - a.length);
+  const normalizedParagraph = paragraph.toLowerCase();
+
+  return aliases.find((alias) => normalizedParagraph.includes(alias.toLowerCase()));
 }
 
 function getScenarioLocation(scenario) {
@@ -777,6 +787,75 @@ function InteractiveCrossword({ crossword }) {
   );
 }
 
+function SuggestedLocationPopover({ distanceHint }) {
+  return (
+    <span className="location-distance-popover" role="status">
+      <strong>{distanceHint.distance_label}</strong>
+      <span>{distanceHint.travel_time_label}</span>
+      <small>{distanceHint.note}</small>
+    </span>
+  );
+}
+
+function SuggestedLocationTrigger({ distanceHint, label }) {
+  const [isHovered, setIsHovered] = useState(false);
+  const [isPinned, setIsPinned] = useState(false);
+  const isOpen = isHovered || isPinned;
+
+  if (!distanceHint) return label;
+
+  return (
+    <span
+      className="suggested-location-inline"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <button
+        className="suggested-location-trigger"
+        onBlur={() => setIsPinned(false)}
+        onClick={() => setIsPinned((value) => !value)}
+        type="button"
+      >
+        {label}
+      </button>
+      {isOpen ? <SuggestedLocationPopover distanceHint={distanceHint} /> : null}
+    </span>
+  );
+}
+
+function renderParagraphWithDistance(paragraph, distanceHint) {
+  const alias = findDistanceAlias(paragraph, distanceHint);
+  if (!alias) return paragraph;
+
+  const index = paragraph.toLowerCase().indexOf(alias.toLowerCase());
+  const before = paragraph.slice(0, index);
+  const match = paragraph.slice(index, index + alias.length);
+  const after = paragraph.slice(index + alias.length);
+
+  return (
+    <>
+      {before}
+      <SuggestedLocationTrigger distanceHint={distanceHint} label={match} />
+      {after}
+    </>
+  );
+}
+
+function SuggestedLocationCard({ distanceHint }) {
+  if (!distanceHint) return null;
+
+  return (
+    <section className="suggested-location-card" aria-label="Suggested location distance">
+      <p className="eyebrow">Suggested place</p>
+      <SuggestedLocationTrigger distanceHint={distanceHint} label={distanceHint.place_name} />
+      <p>
+        <MapPin size={15} />
+        <span>{distanceHint.distance_label} · {distanceHint.travel_time_label}</span>
+      </p>
+    </section>
+  );
+}
+
 function ArtifactCard({ icon, label, value }) {
   return (
     <article className="artifact-card">
@@ -817,6 +896,7 @@ function GuestLetterPage({ error, job }) {
   const response = job.response;
   const letter = response?.letter;
   const crossword = response?.crossword;
+  const distanceHint = response?.discovery?.distance_hint;
   const paragraphs = (letter?.paragraphs ?? []).map(cleanText);
 
   return (
@@ -847,8 +927,10 @@ function GuestLetterPage({ error, job }) {
           </header>
           <div className="letter-body">
             <p className="salutation">{cleanText(letter?.salutation ?? `Good morning, ${job.guest_name}.`)}</p>
-            {paragraphs.map((paragraph) => (
-              <p key={paragraph}>{paragraph}</p>
+            {paragraphs.map((paragraph, index) => (
+              <p key={`${index}-${paragraph.slice(0, 24)}`}>
+                {renderParagraphWithDistance(paragraph, distanceHint)}
+              </p>
             ))}
           </div>
           <InteractiveCrossword crossword={crossword} />
@@ -872,6 +954,8 @@ function GuestLetterPage({ error, job }) {
               <p className="audio-missing">The written note is ready. The voice note has not been generated yet.</p>
             )}
           </section>
+          <p className="guest-script">"{cleanText(response?.audio_script ?? "")}"</p>
+          <SuggestedLocationCard distanceHint={distanceHint} />
           <CrosswordAnswerKey crossword={crossword} />
         </aside>
       </section>
