@@ -15,6 +15,7 @@ import {
   Users,
 } from "lucide-react";
 import {
+  createGuestReservation,
   deliverRosewoodJob,
   getDemoScenarios,
   getRosewoodJobHistoryItem,
@@ -80,6 +81,27 @@ function reservationTitle(text = "", fallback = "Rosewood arrangement") {
   return firstSentence.length > 68 ? `${firstSentence.slice(0, 65).trim()}...` : firstSentence;
 }
 
+function reservationCopy(item) {
+  if (item.id === "discovery") {
+    return {
+      title: item.title || "Local discovery",
+      detail: cleanText(item.detail),
+    };
+  }
+
+  const titleById = {
+    morning: "Morning arrangement",
+    afternoon: "Afternoon arrangement",
+    evening: "Evening arrangement",
+    chef: "Dining note",
+  };
+
+  return {
+    title: titleById[item.id] ?? item.title ?? "Rosewood arrangement",
+    detail: cleanText(item.detail),
+  };
+}
+
 function buildReservationOptions(response) {
   if (!response) return [];
 
@@ -118,11 +140,7 @@ function buildReservationOptions(response) {
 
   return candidates
     .filter((item) => item.detail && RESERVABLE_PATTERN.test(item.detail))
-    .map((item) => ({
-      ...item,
-      title: item.id === "discovery" ? item.title : reservationTitle(item.detail, item.title),
-      detail: cleanText(item.detail),
-    }));
+    .map((item) => ({ ...item, ...reservationCopy(item) }));
 }
 
 function mapIntent(intent) {
@@ -909,9 +927,10 @@ function SuggestedLocationCard({ distanceHint }) {
   );
 }
 
-function ReservationPanel({ options }) {
+function ReservationPanel({ job, options }) {
   const [selectedIds, setSelectedIds] = useState([]);
   const [reservationStatus, setReservationStatus] = useState("");
+  const [isSending, setIsSending] = useState(false);
 
   useEffect(() => {
     setSelectedIds(options.map((option) => option.id));
@@ -931,14 +950,36 @@ function ReservationPanel({ options }) {
     setReservationStatus("");
   }
 
+  async function sendReservation(optionsToReserve, successMessage) {
+    if (!optionsToReserve.length) return;
+    setIsSending(true);
+    setReservationStatus("");
+    try {
+      const result = await createGuestReservation({
+        job_id: job.job_id,
+        email_to: job.response?.profile?.email,
+        options: optionsToReserve,
+      });
+      setReservationStatus(result.message || successMessage);
+    } catch (reservationError) {
+      setReservationStatus(reservationError.message);
+    } finally {
+      setIsSending(false);
+    }
+  }
+
   function reserveSelected() {
     if (!selectedOptions.length) return;
-    setReservationStatus(`${selectedOptions.length} request${selectedOptions.length === 1 ? "" : "s"} sent to Rosewood.`);
+    sendReservation(
+      selectedOptions,
+      `${selectedOptions.length} request${selectedOptions.length === 1 ? "" : "s"} sent to Rosewood.`,
+    );
   }
 
   function reserveWholeDay() {
-    setSelectedIds(options.map((option) => option.id));
-    setReservationStatus("Full-day reservation request sent to Rosewood.");
+    const allOptions = options;
+    setSelectedIds(allOptions.map((option) => option.id));
+    sendReservation(allOptions, "Full-day reservation request sent to Rosewood.");
   }
 
   return (
@@ -958,18 +999,21 @@ function ReservationPanel({ options }) {
             <span>
               <small>{option.label}</small>
               <strong>{option.title}</strong>
-              <em>{option.detail}</em>
+              <span className="reservation-description-wrap">
+                <em>{option.detail}</em>
+                <span className="reservation-description-popover">{option.detail}</span>
+              </span>
             </span>
           </label>
         ))}
       </div>
       <div className="reservation-actions">
-        <button disabled={!selectedOptions.length} onClick={reserveSelected} type="button">
+        <button disabled={!selectedOptions.length || isSending} onClick={reserveSelected} type="button">
           <CheckCircle2 size={16} />
           Reserve selected
         </button>
         {options.length > 1 ? (
-          <button onClick={reserveWholeDay} type="button">
+          <button disabled={isSending} onClick={reserveWholeDay} type="button">
             Reserve whole day
           </button>
         ) : null}
@@ -1080,7 +1124,7 @@ function GuestLetterPage({ error, job }) {
             )}
           </section>
           <SuggestedLocationCard distanceHint={distanceHint} />
-          <ReservationPanel options={reservationOptions} />
+          <ReservationPanel job={job} options={reservationOptions} />
           <CrosswordAnswerKey crossword={crossword} />
         </aside>
       </section>

@@ -16,6 +16,8 @@ from app.services import anthropic_client, delivery_service, elevenlabs_client
 from app.schemas import (
     DemoScenario,
     DeliveryRequest,
+    GuestReservationRequest,
+    GuestReservationResponse,
     GuestProfileCreate,
     GuestProfileRecord,
     PipelineBatchRequest,
@@ -257,6 +259,37 @@ async def deliver_pipeline_job(job_id: str, request: DeliveryRequest) -> Pipelin
         raise HTTPException(status_code=404, detail="Pipeline job not found")
 
     return updated
+
+
+@app.post("/guest-reservations", response_model=GuestReservationResponse)
+async def create_guest_reservation(request: GuestReservationRequest) -> GuestReservationResponse:
+    job = job_store.get_job_by_id(request.job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Pipeline job not found")
+    if job.status != "completed" or job.response is None:
+        raise HTTPException(status_code=409, detail="Pipeline job is not completed yet")
+    if not request.options:
+        raise HTTPException(status_code=400, detail="Reservation options are missing")
+
+    email_to = request.email_to or job.response.profile.email
+    if not email_to:
+        raise HTTPException(status_code=400, detail="Reservation email recipient is missing")
+
+    email = await delivery_service.send_reservation_email(
+        job=job,
+        to_email=email_to,
+        options=request.options,
+    )
+    status = "sent" if email.status == "sent" else email.status
+    return GuestReservationResponse(
+        status=status,
+        message=(
+            "Reservation request sent to Rosewood."
+            if email.status == "sent"
+            else "Reservation request was recorded, but email delivery needs attention."
+        ),
+        email=email,
+    )
 
 
 @app.get("/pipeline/jobs/{batch_id}", response_model=PipelineJobBatchState)

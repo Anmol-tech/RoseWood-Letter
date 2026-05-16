@@ -1137,7 +1137,12 @@ h4 {
   line-height: 1.25;
 }
 
-.reservation-option em {
+.reservation-description-wrap {
+  position: relative;
+  min-width: 0;
+}
+
+.reservation-description-wrap em {
   overflow: hidden;
   display: -webkit-box;
   color: rgba(255, 255, 255, 0.62);
@@ -1146,6 +1151,28 @@ h4 {
   line-height: 1.35;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+}
+
+.reservation-description-popover {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 0.45rem);
+  z-index: 5;
+  display: none;
+  padding: 0.72rem 0.78rem;
+  border: 1px solid color-mix(in srgb, var(--mood-accent-2) 32%, transparent);
+  border-radius: 0.4rem;
+  background: rgba(7, 20, 16, 0.98);
+  box-shadow: 0 1rem 2.5rem rgba(0, 0, 0, 0.28);
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.reservation-option:hover .reservation-description-popover,
+.reservation-option:focus-within .reservation-description-popover {
+  display: block;
 }
 
 .reservation-actions {

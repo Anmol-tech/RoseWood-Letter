@@ -212,6 +212,25 @@ class DeliveryRequest(BaseModel):
     email_to: str | None = None
 
 
+class ReservationOptionRequest(BaseModel):
+    id: str
+    label: str
+    title: str
+    detail: str
+
+
+class GuestReservationRequest(BaseModel):
+    job_id: str
+    options: list[ReservationOptionRequest] = Field(default_factory=list)
+    email_to: str | None = None
+
+
+class GuestReservationResponse(BaseModel):
+    status: str
+    message: str
+    email: DeliveryChannelState
+
+
 class PipelineResponse(BaseModel):
     profile: GuestProfile
     visit_intent: VisitIntent
