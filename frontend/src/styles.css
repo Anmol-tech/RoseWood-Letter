@@ -265,6 +265,46 @@ h4 {
   gap: 1rem;
 }
 
+.filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.052);
+}
+
+.filter-bar label {
+  display: grid;
+  gap: 0.35rem;
+  min-width: min(24rem, 100%);
+}
+
+.filter-bar span {
+  color: var(--steel);
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.filter-bar select {
+  min-height: 2.65rem;
+  padding: 0 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 0.45rem;
+  background: rgba(7, 12, 13, 0.72);
+  color: var(--paper);
+  font: inherit;
+}
+
+.filter-bar p {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 700;
+}
+
 .guest-card {
   display: grid;
   gap: 1rem;
@@ -374,7 +414,7 @@ h4 {
 
 .job-list-panel {
   display: grid;
-  gap: 1rem;
+  gap: 1.25rem;
   padding: 1rem;
 }
 
@@ -392,6 +432,36 @@ h4 {
 .job-list {
   display: grid;
   gap: 0.65rem;
+}
+
+.hotel-job-group {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 0.5rem;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--mood-wash) 44%, transparent), rgba(255, 255, 255, 0.026));
+}
+
+.hotel-job-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.hotel-job-head h3 {
+  font-size: 1.55rem;
+}
+
+.hotel-job-head span {
+  color: var(--steel);
+  font-size: 0.82rem;
+  font-weight: 800;
+  white-space: nowrap;
 }
 
 .job-row {
@@ -1614,6 +1684,11 @@ h4 {
 
   .ops-grid {
     grid-template-columns: 1fr;
+  }
+
+  .filter-bar {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .artifact-signal {

@@ -22,6 +22,7 @@ class GuestProfile(BaseModel):
     id: int | None = None
     guest_name: str = "Guest"
     suite: str = "804"
+    property_location: str = "Rosewood Menlo Park"
     booking_notes: str = "quiet weekend"
     arrival_date: str = "2030-05-16"
     stay_nights: int = 2
@@ -32,6 +33,7 @@ class GuestProfile(BaseModel):
 class GuestProfileCreate(BaseModel):
     guest_name: str = "Guest"
     suite: str = "804"
+    property_location: str = "Rosewood Menlo Park"
     booking_notes: str = "quiet weekend"
     arrival_date: str = "2030-05-16"
     stay_nights: int = 2
@@ -219,6 +221,7 @@ class PipelineJobState(BaseModel):
     status: Literal["queued", "running", "completed", "failed"]
     guest_name: str
     suite: str
+    location: str = "Rosewood Property"
     current_agents: list[str] = Field(default_factory=list)
     completed_agents: list[str] = Field(default_factory=list)
     progress: int = 0

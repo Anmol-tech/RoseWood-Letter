@@ -32,6 +32,7 @@ class PipelineJobStore:
                     status TEXT NOT NULL,
                     guest_name TEXT NOT NULL,
                     suite TEXT NOT NULL,
+                    location TEXT NOT NULL DEFAULT 'Rosewood Property',
                     request_json TEXT NOT NULL,
                     current_agents_json TEXT NOT NULL,
                     completed_agents_json TEXT NOT NULL,
@@ -44,6 +45,17 @@ class PipelineJobStore:
                 )
                 """
             )
+            columns = {
+                row["name"]
+                for row in connection.execute("PRAGMA table_info(pipeline_jobs)").fetchall()
+            }
+            if "location" not in columns:
+                connection.execute(
+                    """
+                    ALTER TABLE pipeline_jobs
+                    ADD COLUMN location TEXT NOT NULL DEFAULT 'Rosewood Property'
+                    """
+                )
 
     def recover_interrupted_jobs(self) -> None:
         self.init_tables()
@@ -85,6 +97,7 @@ class PipelineJobStore:
             request_map = {}
 
             for index, request in enumerate(requests):
+                location = self._location_from_request(request)
                 job = PipelineJobState(
                     job_id=uuid4().hex,
                     batch_id=batch_id,
@@ -92,6 +105,7 @@ class PipelineJobStore:
                     status="queued",
                     guest_name=request.profile.guest_name,
                     suite=request.profile.suite,
+                    location=location,
                     created_at=now,
                     updated_at=now,
                 )
@@ -106,6 +120,7 @@ class PipelineJobStore:
                         status,
                         guest_name,
                         suite,
+                        location,
                         request_json,
                         current_agents_json,
                         completed_agents_json,
@@ -115,7 +130,7 @@ class PipelineJobStore:
                         created_at,
                         updated_at
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         job.job_id,
@@ -124,6 +139,7 @@ class PipelineJobStore:
                         job.status,
                         job.guest_name,
                         job.suite,
+                        job.location,
                         request.model_dump_json(),
                         json.dumps(job.current_agents),
                         json.dumps(job.completed_agents),
@@ -155,6 +171,36 @@ class PipelineJobStore:
             if (state := self.get_batch(row["batch_id"])) is not None
         ]
 
+    def list_jobs(self) -> list[PipelineJobState]:
+        self.init_tables()
+        with get_connection() as connection:
+            rows = connection.execute(
+                """
+                SELECT *
+                FROM pipeline_jobs
+                ORDER BY created_at DESC, job_index ASC
+                """
+            ).fetchall()
+
+        return [self._row_to_job(row) for row in rows]
+
+    def get_job_by_id(self, job_id: str) -> PipelineJobState | None:
+        self.init_tables()
+        with get_connection() as connection:
+            row = connection.execute(
+                """
+                SELECT *
+                FROM pipeline_jobs
+                WHERE job_id = ?
+                """,
+                (job_id,),
+            ).fetchone()
+
+        if row is None:
+            return None
+
+        return self._row_to_job(row)
+
     def _row_to_job(self, row) -> PipelineJobState:
         response = None
         if row["response_json"]:
@@ -167,6 +213,7 @@ class PipelineJobStore:
             status=row["status"],
             guest_name=row["guest_name"],
             suite=row["suite"],
+            location=row["location"],
             current_agents=json.loads(row["current_agents_json"]),
             completed_agents=json.loads(row["completed_agents_json"]),
             progress=row["progress"],
@@ -251,6 +298,16 @@ class PipelineJobStore:
             return None
 
         return PipelineRequest.model_validate(json.loads(row["request_json"]))
+
+    def _location_from_request(self, request: PipelineRequest) -> str:
+        if request.profile.property_location:
+            return request.profile.property_location
+
+        notes = request.profile.booking_notes
+        if ":" in notes:
+            return notes.split(":", 1)[0].strip() or "Rosewood Property"
+
+        return "Rosewood Property"
 
     def get_batch(self, batch_id: str) -> PipelineJobBatchState | None:
         max_concurrency = self._get_max_concurrency(batch_id)

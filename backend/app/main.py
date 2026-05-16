@@ -191,6 +191,20 @@ def list_pipeline_jobs() -> list[PipelineJobBatchState]:
     return job_store.list_batches()
 
 
+@app.get("/pipeline/job-history", response_model=list[PipelineJobState])
+def list_pipeline_job_history() -> list[PipelineJobState]:
+    return job_store.list_jobs()
+
+
+@app.get("/pipeline/job-history/{job_id}", response_model=PipelineJobState)
+def get_pipeline_job_history_item(job_id: str) -> PipelineJobState:
+    job = job_store.get_job_by_id(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Pipeline job not found")
+
+    return job
+
+
 @app.get("/pipeline/jobs/{batch_id}", response_model=PipelineJobBatchState)
 def get_pipeline_jobs(batch_id: str) -> PipelineJobBatchState:
     state = job_store.get_batch(batch_id)

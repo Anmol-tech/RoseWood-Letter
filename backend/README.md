@@ -50,6 +50,9 @@ the pipeline runs.
 - `POST /pipeline/run`
 - `POST /pipeline/run-batch`
 - `POST /pipeline/jobs`
+- `GET /pipeline/jobs`
+- `GET /pipeline/job-history`
+- `GET /pipeline/job-history/{job_id}`
 - `GET /pipeline/jobs/{batch_id}`
 - `GET /pipeline/jobs/{batch_id}/{job_id}`
 

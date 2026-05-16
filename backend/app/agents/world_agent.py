@@ -12,16 +12,17 @@ class WorldAgent(BaseAgent):
         context: dict | None = None,
     ) -> AgentOutput:
         label = intent.label if intent else "Quiet Restoration"
+        location = request.profile.property_location
 
         if label == "Milestone":
             return AgentOutput(
                 agent=self.name,
-                title="Clear evening light",
+                title=f"{location} evening light",
                 summary="Weather, dining, and property details shaped around a private evening centerpiece.",
                 data={
-                    "weather_frame": "The morning is clear and still; by evening the west terrace will hold the last light for nearly twelve minutes.",
-                    "property_detail": "The library garden has been kept private after five.",
-                    "chef_note": "The kitchen has a two-person tasting that can arrive without a menu.",
+                    "weather_frame": f"Frame today's weather and light around {location}, with one detail that changes the guest's day.",
+                    "property_detail": f"Surface one property-specific quiet space or service path at {location}.",
+                    "chef_note": f"Offer one chef or bar note that belongs to {location}.",
                     "local_conditions": [
                         "Terrace sunset window begins at 19:42",
                         "Library garden can be held privately",
@@ -33,12 +34,12 @@ class WorldAgent(BaseAgent):
         if label == "Celebration Discovery":
             return AgentOutput(
                 agent=self.name,
-                title="A bright local opening",
+                title=f"{location} local opening",
                 summary="Weather, food, and cultural details filtered for a guest who wants discovery.",
                 data={
-                    "weather_frame": "The fog will lift early, leaving the market streets bright by ten.",
-                    "property_detail": "The front drive has vintage convertibles available after lunch.",
-                    "chef_note": "The chef is holding back six sea urchin tartlets for the counter tonight.",
+                    "weather_frame": f"Describe the morning conditions immediately around {location}.",
+                    "property_detail": f"Name one energizing property touchpoint at {location}.",
+                    "chef_note": f"Name one celebratory culinary detail from {location}.",
                     "local_conditions": [
                         "Design market opens at ten",
                         "Vintage drive route clear after lunch",
@@ -49,12 +50,12 @@ class WorldAgent(BaseAgent):
 
         return AgentOutput(
             agent=self.name,
-            title="Fog before eleven",
+            title=f"{location} morning conditions",
             summary="Weather, trail, and property details filtered for the guest's intent.",
             data={
-                "weather_frame": "The fog came in overnight and will keep the east trail cool.",
-                "property_detail": "The garden path is dry enough for soft shoes.",
-                "chef_note": "A quiet breakfast can be sent without conversation.",
+                "weather_frame": f"Frame the morning weather around {location} as an experience, not a forecast.",
+                "property_detail": f"Use one quiet property detail from {location}.",
+                "chef_note": f"Offer one low-friction food or beverage option from {location}.",
                 "local_conditions": [
                     "East trail cool until eleven",
                     "Garden path dry enough for soft shoes",
@@ -74,9 +75,14 @@ class WorldAgent(BaseAgent):
             system=(
                 "You are the Rosewood Letter World Agent. Filter weather, property, "
                 "food, and local facts through the visit intent. Return only JSON "
-                "with weather_frame, property_detail, chef_note, local_conditions."
+                "with weather_frame, property_detail, chef_note, local_conditions. "
+                "Use property_location as the property and neighborhood anchor."
             ),
-            prompt=f"Intent: {intent.model_dump() if intent else {}}\nGuest: {request.profile.model_dump()}",
+            prompt=(
+                f"Property location: {request.profile.property_location}\n"
+                f"Intent: {intent.model_dump() if intent else {}}\n"
+                f"Guest: {request.profile.model_dump()}"
+            ),
             fallback=fallback.data,
         )
         return AgentOutput(

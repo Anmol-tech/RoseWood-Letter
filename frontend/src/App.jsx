@@ -13,17 +13,24 @@ import {
   Users,
 } from "lucide-react";
 import {
-  fallbackScenarios,
-  letterParagraphs,
-  pipelineStages,
-  visitIntent,
-} from "./data/rosewoodPipeline.js";
-import {
   getDemoScenarios,
   getRosewoodPipelineJobs,
-  listRosewoodPipelineJobs,
+  listRosewoodJobHistory,
   startRosewoodPipelineJobs,
 } from "./services/api.js";
+
+const PIPELINE_STAGES = [
+  { name: "Intent", agent: "Intent Agent" },
+  { name: "World", agent: "World Agent" },
+  { name: "Rhythm", agent: "Rhythm Agent" },
+  { name: "Discovery", agent: "Discovery Agent" },
+  { name: "Memory", agent: "Memory Agent" },
+  { name: "Resonance", agent: "Temporal Resonance Layer" },
+  { name: "Voice", agent: "Voice Agent" },
+  { name: "Crossword", agent: "Crossword Agent" },
+  { name: "Compositor", agent: "Compositor Agent" },
+  { name: "Audio", agent: "Audio Agent" },
+];
 
 function cleanText(text = "") {
   return text.replace(/\u2014/g, ", ").replace(/\u2013/g, "-");
@@ -37,7 +44,17 @@ function getMoodClass(label = "") {
 }
 
 function mapIntent(intent) {
-  if (!intent) return visitIntent;
+  if (!intent) {
+    return {
+      label: "Pending",
+      confidence: 0,
+      emotionalState: "Waiting for generated output",
+      engagementStyle: "Pending",
+      narrativeFrame: "Pending",
+      scentProfile: "Pending",
+    };
+  }
+
   return {
     label: intent.label,
     confidence: intent.confidence,
@@ -77,7 +94,21 @@ function Sidebar({ screen, onHome, onJobs }) {
   );
 }
 
-function GuestHome({ scenarios, selectedIds, onToggle, onGenerateOne, onGenerateSelected }) {
+function GuestHome({
+  locationFilter,
+  onGenerateOne,
+  onGenerateSelected,
+  onLocationFilterChange,
+  onToggle,
+  scenarios,
+  selectedIds,
+}) {
+  const locations = Array.from(
+    new Set(scenarios.map((scenario) => scenario.request.profile.property_location)),
+  ).sort((a, b) => a.localeCompare(b));
+  const filteredScenarios = locationFilter === "all"
+    ? scenarios
+    : scenarios.filter((scenario) => scenario.request.profile.property_location === locationFilter);
   const selectedCount = selectedIds.length;
 
   return (
@@ -97,8 +128,22 @@ function GuestHome({ scenarios, selectedIds, onToggle, onGenerateOne, onGenerate
         </button>
       </section>
 
-      <section className="guest-grid" aria-label="Guest list">
-        {scenarios.map((scenario) => {
+      <section className="filter-bar" aria-label="Guest filters">
+        <label>
+          <span>Location</span>
+          <select value={locationFilter} onChange={(event) => onLocationFilterChange(event.target.value)}>
+            <option value="all">All Rosewood locations</option>
+            {locations.map((location) => (
+              <option key={location} value={location}>{location}</option>
+            ))}
+          </select>
+        </label>
+        <p>{filteredScenarios.length} guests shown · {selectedCount} selected</p>
+      </section>
+
+      {filteredScenarios.length ? (
+        <section className="guest-grid" aria-label="Guest list">
+          {filteredScenarios.map((scenario) => {
           const profile = scenario.request.profile;
           const selected = selectedIds.includes(scenario.id);
 
@@ -114,7 +159,7 @@ function GuestHome({ scenarios, selectedIds, onToggle, onGenerateOne, onGenerate
                   <span />
                 </label>
                 <div>
-                  <p className="eyebrow">Suite {profile.suite}</p>
+                  <p className="eyebrow">{profile.property_location} · Suite {profile.suite}</p>
                   <h3>{profile.guest_name}</h3>
                 </div>
               </header>
@@ -138,14 +183,63 @@ function GuestHome({ scenarios, selectedIds, onToggle, onGenerateOne, onGenerate
               </button>
             </article>
           );
-        })}
-      </section>
+          })}
+        </section>
+      ) : (
+        <section className="empty-state">
+          <Users size={28} />
+          <h2>No backend guests loaded</h2>
+          <p>Start the backend and ensure `GET /scenarios` is available.</p>
+        </section>
+      )}
     </main>
   );
 }
 
-function JobList({ batch, selectedJobId, onSelect }) {
-  if (!batch) {
+function formatRunTimestamp(value) {
+  if (!value) return "No timestamp";
+  return new Date(value).toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function getJobLocation(job) {
+  if (job.location) return job.location;
+  if (job.response?.profile?.property_location) return job.response.profile.property_location;
+
+  const notes = job.response?.profile?.booking_notes ?? "";
+  if (notes.includes(":")) return notes.split(":")[0].trim();
+  return "Rosewood Property";
+}
+
+function groupJobsByLocation(jobs) {
+  return jobs.reduce((groups, job) => {
+    const location = getJobLocation(job);
+    return {
+      ...groups,
+      [location]: [...(groups[location] ?? []), job],
+    };
+  }, {});
+}
+
+function mergeJobs(incoming, existing) {
+  const byId = new Map();
+  [...incoming, ...existing].forEach((job) => {
+    if (!byId.has(job.job_id)) {
+      byId.set(job.job_id, job);
+    }
+  });
+
+  return Array.from(byId.values()).sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  );
+}
+
+function JobList({ jobs, selectedJobId, onSelect }) {
+  if (!jobs.length) {
     return (
       <section className="empty-state">
         <Moon size={28} />
@@ -155,34 +249,50 @@ function JobList({ batch, selectedJobId, onSelect }) {
     );
   }
 
+  const groupedJobs = groupJobsByLocation(jobs);
+  const locations = Object.keys(groupedJobs).sort((a, b) => a.localeCompare(b));
+
   return (
     <section className="job-list-panel">
       <div className="job-list-head">
         <div>
-          <p className="eyebrow">Generation jobs</p>
-          <h2>{batch.completed}/{batch.total} completed</h2>
+          <p className="eyebrow">Generation history</p>
+          <h2>{jobs.length} saved jobs</h2>
         </div>
-        <span>{batch.running} running · {batch.queued} queued · {batch.failed} failed</span>
+        <span>{jobs.filter((job) => job.status === "running").length} running · {jobs.filter((job) => job.status === "completed").length} complete</span>
       </div>
-      <div className="job-list">
-        {batch.jobs.map((job) => (
-          <button
-            className={`job-row ${job.status} ${job.job_id === selectedJobId ? "active" : ""}`}
-            key={job.job_id}
-            onClick={() => onSelect(job.job_id)}
-            type="button"
-          >
-            <StatusIcon status={job.status} />
-            <span className="job-main">
-              <strong>{job.guest_name}</strong>
-              <small>Suite {job.suite} · {job.current_agents[0] ?? job.completed_agents.at(-1) ?? "Waiting"}</small>
-            </span>
-            <span className="job-progress">
-              <i style={{ width: `${job.progress}%` }} />
-            </span>
-          </button>
-        ))}
-      </div>
+      {locations.map((location) => (
+        <section className="hotel-job-group" key={location}>
+          <div className="hotel-job-head">
+            <div>
+              <p className="eyebrow">Rosewood location</p>
+              <h3>{location}</h3>
+            </div>
+            <span>{groupedJobs[location].length} jobs</span>
+          </div>
+          <div className="job-list">
+            {groupedJobs[location].map((job) => (
+              <button
+                className={`job-row ${job.status} ${job.job_id === selectedJobId ? "active" : ""}`}
+                key={job.job_id}
+                onClick={() => onSelect(job.job_id)}
+                type="button"
+              >
+                <StatusIcon status={job.status} />
+                <span className="job-main">
+                  <strong>{job.guest_name}</strong>
+                  <small>
+                    {job.location} · Suite {job.suite} · {formatRunTimestamp(job.created_at)} · {job.current_agents[0] ?? job.completed_agents.at(-1) ?? "Waiting"}
+                  </small>
+                </span>
+                <span className="job-progress">
+                  <i style={{ width: `${job.progress}%` }} />
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
+      ))}
     </section>
   );
 }
@@ -194,7 +304,7 @@ function StatusIcon({ status }) {
   return <Moon className="status-icon" size={18} />;
 }
 
-function JobsScreen({ batch, onSelect, onBack }) {
+function JobsScreen({ jobs, onSelect, onBack }) {
   return (
     <main className="workspace jobs-layout">
       <section className="jobs-topbar">
@@ -207,13 +317,13 @@ function JobsScreen({ batch, onSelect, onBack }) {
           <h2>Artifact generation queue</h2>
         </div>
       </section>
-      <JobList batch={batch} selectedJobId="" onSelect={onSelect} />
+      <JobList jobs={jobs} selectedJobId="" onSelect={onSelect} />
     </main>
   );
 }
 
-function DetailScreen({ batch, selectedJobId, onBackToRuns, onBackToGuests }) {
-  const selectedJob = batch?.jobs.find((job) => job.job_id === selectedJobId) ?? batch?.jobs[0];
+function DetailScreen({ jobs, selectedJobId, onBackToRuns, onBackToGuests }) {
+  const selectedJob = jobs.find((job) => job.job_id === selectedJobId) ?? jobs[0];
 
   return (
     <main className="workspace detail-layout">
@@ -288,7 +398,7 @@ function RunningJobDetail({ job }) {
         <i style={{ width: `${job.progress}%` }} />
       </div>
       <div className="agent-timeline">
-        {pipelineStages.map((stage) => (
+        {PIPELINE_STAGES.map((stage) => (
           <div className={completed.has(stage.agent) ? "done" : ""} key={stage.agent}>
             <span>{stage.name}</span>
             <small>{completed.has(stage.agent) ? "complete" : "pending"}</small>
@@ -309,7 +419,7 @@ function CompletedJobDetail({ job }) {
   const moodClass = getMoodClass(intent.label);
   const letter = response?.letter;
   const crossword = response?.crossword;
-  const paragraphs = (letter?.paragraphs ?? letterParagraphs).map(cleanText);
+  const paragraphs = (letter?.paragraphs ?? []).map(cleanText);
 
   return (
     <section className={`detail-panel result-detail ${moodClass}`}>
@@ -317,7 +427,7 @@ function CompletedJobDetail({ job }) {
         <div>
           <p className="eyebrow">Generated artifact</p>
           <h2>{job.guest_name}</h2>
-          <span>Suite {job.suite} · {intent.label} · {intent.confidence}%</span>
+          <span>{job.location} · Suite {job.suite} · {intent.label} · {intent.confidence}%</span>
         </div>
         <span className="status-pill">
           <CheckCircle2 size={16} />
@@ -446,10 +556,12 @@ function ArtifactCard({ icon, label, value }) {
 }
 
 export default function App() {
-  const [scenarios, setScenarios] = useState(fallbackScenarios);
-  const [selectedIds, setSelectedIds] = useState(fallbackScenarios.map((scenario) => scenario.id));
+  const [scenarios, setScenarios] = useState([]);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [locationFilter, setLocationFilter] = useState("all");
   const [screen, setScreen] = useState("home");
   const [batch, setBatch] = useState(null);
+  const [jobHistory, setJobHistory] = useState([]);
   const [selectedJobId, setSelectedJobId] = useState("");
   const [error, setError] = useState("");
 
@@ -460,15 +572,13 @@ export default function App() {
         setSelectedIds(items.map((scenario) => scenario.id));
       })
       .catch(() => {
-        setScenarios(fallbackScenarios);
+        setError("Failed to load guests from backend.");
       });
 
-    listRosewoodPipelineJobs()
-      .then((batches) => {
-        if (batches.length) {
-          setBatch(batches[0]);
-          setSelectedJobId(batches[0].jobs[0]?.job_id ?? "");
-        }
+    listRosewoodJobHistory()
+      .then((jobs) => {
+        setJobHistory(jobs);
+        setSelectedJobId((current) => current || jobs[0]?.job_id || "");
       })
       .catch(() => {});
   }, []);
@@ -482,6 +592,7 @@ export default function App() {
       try {
         const nextBatch = await getRosewoodPipelineJobs(batch.batch_id);
         setBatch(nextBatch);
+        setJobHistory((current) => mergeJobs(nextBatch.jobs, current));
         setSelectedJobId((current) => current || nextBatch.jobs[0]?.job_id || "");
       } catch (pollError) {
         setError(pollError.message);
@@ -492,9 +603,9 @@ export default function App() {
   }, [batch]);
 
   const moodClass = useMemo(() => {
-    const selectedJob = batch?.jobs.find((job) => job.job_id === selectedJobId);
+    const selectedJob = jobHistory.find((job) => job.job_id === selectedJobId);
     return getMoodClass(selectedJob?.response?.visit_intent?.label);
-  }, [batch, selectedJobId]);
+  }, [jobHistory, selectedJobId]);
 
   function toggleGuest(id) {
     setSelectedIds((current) => (
@@ -520,6 +631,7 @@ export default function App() {
         requests,
       });
       setBatch(started);
+      setJobHistory((current) => mergeJobs(started.jobs, current));
       setSelectedJobId(started.jobs[0]?.job_id ?? "");
     } catch (startError) {
       setError(startError.message);
@@ -537,14 +649,16 @@ export default function App() {
         <GuestHome
           onGenerateOne={(id) => startGeneration([id])}
           onGenerateSelected={() => startGeneration(selectedIds)}
+          onLocationFilterChange={setLocationFilter}
           onToggle={toggleGuest}
+          locationFilter={locationFilter}
           scenarios={scenarios}
           selectedIds={selectedIds}
         />
       ) : (
         screen === "jobs" ? (
           <JobsScreen
-            batch={batch}
+            jobs={jobHistory}
             onBack={() => setScreen("home")}
             onSelect={(jobId) => {
               setSelectedJobId(jobId);
@@ -553,7 +667,7 @@ export default function App() {
           />
         ) : (
           <DetailScreen
-            batch={batch}
+            jobs={jobHistory}
             onBackToGuests={() => setScreen("home")}
             onBackToRuns={() => setScreen("jobs")}
             selectedJobId={selectedJobId}
