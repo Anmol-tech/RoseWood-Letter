@@ -38,6 +38,18 @@ class DiscoveryAgent(BaseAgent):
                 },
             )
 
+        if label == "Conference Event":
+            return AgentOutput(
+                agent=self.name,
+                title=f"{location} event-day opening",
+                summary="A single recommendation that helps the guest prepare, recover, or make the event feel worthwhile.",
+                data={
+                    "recommendation": f"A quiet post-event table or short walk near {location} can be held.",
+                    "reason": "It keeps the evening private after the public part of the day.",
+                    "guest_fit": label,
+                },
+            )
+
         return AgentOutput(
             agent=self.name,
             title=f"{location} quiet discovery",

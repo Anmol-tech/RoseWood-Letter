@@ -22,6 +22,35 @@ class IntentAgent(BaseAgent):
             )
 
         if (
+            "conference" in notes
+            or "summit" in notes
+            or "keynote" in notes
+            or "panel" in notes
+            or "expo" in notes
+            or "congress" in notes
+            or "board meeting" in notes
+            or "business meeting" in notes
+            or "client meeting" in notes
+            or "public engagement" in notes
+            or "official visit" in notes
+            or "conference" in occasion
+            or "summit" in occasion
+            or "event" in occasion
+            or "official visit" in occasion
+            or "executive" in persona
+            or "delegate" in persona
+            or "speaker" in persona
+        ):
+            return VisitIntent(
+                label="Conference Event",
+                confidence=87,
+                emotional_state="Purposeful, time-bound, wanting the hotel to reduce friction around a public commitment",
+                engagement_style="Precise support, recovery windows, smart local context, no excess",
+                narrative_frame="The day should help the guest arrive prepared and quietly restored afterward",
+                scent_profile="Green tea, vetiver, clean paper, rain-washed stone",
+            )
+
+        if (
             "birthday" in notes
             or "celebration" in occasion
             or "hidden local" in notes
@@ -75,7 +104,7 @@ class IntentAgent(BaseAgent):
             prompt=(
                 f"Guest profile: {request.profile.model_dump()}\n"
                 f"Ambient signals: {[signal.model_dump() for signal in request.ambient_signals]}\n"
-                "Classify as Quiet Restoration, Milestone, or Celebration Discovery unless "
+                "Classify as Quiet Restoration, Milestone, Celebration Discovery, or Conference Event unless "
                 "the data clearly demands another concise label."
             ),
             fallback=fallback,

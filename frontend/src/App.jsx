@@ -51,7 +51,12 @@ function getMoodClass(label = "") {
   const normalized = label.toLowerCase();
   if (normalized.includes("milestone")) return "mood-milestone";
   if (normalized.includes("celebration")) return "mood-celebration";
+  if (normalized.includes("conference") || normalized.includes("event")) return "mood-event";
   return "mood-restoration";
+}
+
+function getScenarioLocation(scenario) {
+  return scenario?.request?.profile?.property_location ?? "Rosewood Property";
 }
 
 function mapIntent(intent) {
@@ -115,12 +120,18 @@ function GuestHome({
   selectedIds,
 }) {
   const locations = Array.from(
-    new Set(scenarios.map((scenario) => scenario.request.profile.property_location)),
+    new Set(scenarios.map(getScenarioLocation)),
   ).sort((a, b) => a.localeCompare(b));
   const filteredScenarios = locationFilter === "all"
     ? scenarios
-    : scenarios.filter((scenario) => scenario.request.profile.property_location === locationFilter);
-  const selectedCount = selectedIds.length;
+    : scenarios.filter((scenario) => getScenarioLocation(scenario) === locationFilter);
+  const visibleSelectedIds = filteredScenarios
+    .filter((scenario) => selectedIds.includes(scenario.id))
+    .map((scenario) => scenario.id);
+  const selectedCount = visibleSelectedIds.length;
+  const selectedLabel = locationFilter === "all"
+    ? `${selectedCount || "selected"}`
+    : `${selectedCount || "selected"} at ${locationFilter}`;
 
   return (
     <main className="workspace">
@@ -133,9 +144,14 @@ function GuestHome({
             Rosewood Letter for one guest, or run the full overnight artifact pass.
           </p>
         </div>
-        <button className="primary-action large" disabled={!selectedCount} onClick={onGenerateSelected} type="button">
+        <button
+          className="primary-action large"
+          disabled={!selectedCount}
+          onClick={() => onGenerateSelected(visibleSelectedIds)}
+          type="button"
+        >
           <Moon size={18} />
-          Generate {selectedCount || "selected"}
+          Generate {selectedLabel}
         </button>
       </section>
 
@@ -149,7 +165,7 @@ function GuestHome({
             ))}
           </select>
         </label>
-        <p>{filteredScenarios.length} guests shown · {selectedCount} selected</p>
+        <p>{filteredScenarios.length} guests shown · {selectedCount} selected in view</p>
       </section>
 
       {filteredScenarios.length ? (
@@ -765,9 +781,10 @@ export default function App() {
     ));
   }
 
-  async function startGeneration(ids) {
+  async function startGeneration(ids, location = "all") {
     const requests = scenarios
       .filter((scenario) => ids.includes(scenario.id))
+      .filter((scenario) => location === "all" || getScenarioLocation(scenario) === location)
       .map((scenario) => scenario.request);
 
     if (!requests.length) return;
@@ -802,7 +819,7 @@ export default function App() {
       {screen === "home" ? (
         <GuestHome
           onGenerateOne={(id) => startGeneration([id])}
-          onGenerateSelected={() => startGeneration(selectedIds)}
+          onGenerateSelected={(ids) => startGeneration(ids, locationFilter)}
           onLocationFilterChange={setLocationFilter}
           onToggle={toggleGuest}
           locationFilter={locationFilter}

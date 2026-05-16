@@ -290,6 +290,19 @@ class RosewoodPipeline:
                     "The door looks ordinary until it opens."
                 ),
             ]
+        elif label == "Conference Event":
+            paragraphs = [
+                (
+                    f"The day has a public shape. {world_output['weather_frame']}"
+                ),
+                (
+                    "We have kept the useful parts close: breakfast, a quiet margin, and a clean return."
+                ),
+                (
+                    f"After the formal part of the day, {self._lowercase_first(discovery_output['recommendation'])} "
+                    f"{discovery_output['reason']}"
+                ),
+            ]
         else:
             paragraphs = [
                 (
@@ -309,6 +322,12 @@ class RosewoodPipeline:
 
     def _clean_prose(self, text: str) -> str:
         return text.replace("\u2014", ", ").replace("\u2013", "-")
+
+    def _lowercase_first(self, text: str) -> str:
+        text = str(text).strip()
+        if not text:
+            return text
+        return text[0].lower() + text[1:]
 
     def _guest_letter_url(self, request: PipelineRequest) -> str:
         base_url = (request.frontend_base_url or request.public_base_url or "").rstrip("/")

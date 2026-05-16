@@ -77,6 +77,13 @@ button:disabled {
   --mood-accent-2: #72b2a4;
 }
 
+.app-shell.mood-event {
+  --mood-glow: rgba(128, 160, 176, 0.18);
+  --mood-wash: rgba(20, 42, 47, 0.76);
+  --mood-accent: #d8d0b5;
+  --mood-accent-2: #80a0b0;
+}
+
 .sidebar {
   position: sticky;
   top: 0;

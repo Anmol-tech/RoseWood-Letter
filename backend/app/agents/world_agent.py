@@ -48,6 +48,23 @@ class WorldAgent(BaseAgent):
                 },
             )
 
+        if label == "Conference Event":
+            return AgentOutput(
+                agent=self.name,
+                title=f"{location} event day conditions",
+                summary="Weather, property, and service details shaped around a guest attending a scheduled event.",
+                data={
+                    "weather_frame": f"The morning around {location} leaves enough margin for a composed arrival.",
+                    "property_detail": f"{location} can keep a quiet workspace and transfer buffer ready.",
+                    "chef_note": "A light breakfast can arrive before the public part of the day begins.",
+                    "local_conditions": [
+                        "Morning transfer buffer held",
+                        "Quiet workspace available before departure",
+                        "Light post-event supper can be arranged",
+                    ],
+                },
+            )
+
         return AgentOutput(
             agent=self.name,
             title=f"{location} morning conditions",

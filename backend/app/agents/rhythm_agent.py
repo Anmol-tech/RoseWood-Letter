@@ -41,6 +41,20 @@ class RhythmAgent(BaseAgent):
                 },
             )
 
+        if label == "Conference Event":
+            summary = "Protect preparation, smooth the public moment, then give the guest a clean landing."
+            return AgentOutput(
+                agent=self.name,
+                title="A day around the event",
+                summary=summary,
+                data={
+                    "morning": "Keep the morning practical: quiet breakfast, pressed clothes, and a transfer buffer.",
+                    "afternoon": "Leave a recovery window after the event before any optional local plan.",
+                    "evening": "Offer one polished, low-effort dinner or walk that helps the day release.",
+                    "emotional_shape": summary,
+                },
+            )
+
         summary = "Leave the first hours untouched, then offer one gentle afternoon destination."
         return AgentOutput(
             agent=self.name,
