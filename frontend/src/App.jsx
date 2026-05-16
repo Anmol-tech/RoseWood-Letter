@@ -658,6 +658,125 @@ function LetterCrossword({ crossword }) {
   );
 }
 
+function InteractiveCrossword({ crossword }) {
+  const [answers, setAnswers] = useState({});
+  const [checked, setChecked] = useState(false);
+
+  if (!crossword?.grid?.length || !crossword?.entries?.length) return null;
+
+  const starts = new Map(
+    crossword.entries.map((entry) => [`${entry.row}:${entry.col}`, entry.number]),
+  );
+  const correctCells = new Map();
+  crossword.grid.forEach((row, rowIndex) => {
+    row.forEach((cell, colIndex) => {
+      if (cell) correctCells.set(`${rowIndex}:${colIndex}`, cell);
+    });
+  });
+
+  function updateCell(key, value) {
+    const letter = value.replace(/[^a-z]/gi, "").slice(-1).toUpperCase();
+    setAnswers((current) => ({ ...current, [key]: letter }));
+    setChecked(false);
+  }
+
+  function clearPuzzle() {
+    setAnswers({});
+    setChecked(false);
+  }
+
+  function entryValue(entry) {
+    return Array.from({ length: entry.answer.length }, (_, index) => {
+      const row = entry.row + (entry.direction === "down" ? index : 0);
+      const col = entry.col + (entry.direction === "across" ? index : 0);
+      return answers[`${row}:${col}`] ?? "";
+    }).join("");
+  }
+
+  function entryStatus(entry) {
+    const value = entryValue(entry);
+    if (!value) return "blank";
+    if (value.length < entry.answer.length) return "partial";
+    return value === entry.answer ? "correct" : "incorrect";
+  }
+
+  const filledCount = Object.values(answers).filter(Boolean).length;
+  const totalCells = correctCells.size;
+  const correctEntryCount = crossword.entries.filter((entry) => entryStatus(entry) === "correct").length;
+
+  return (
+    <section className="letter-crossword interactive-crossword" aria-label="Interactive morning crossword">
+      <div className="letter-crossword-head">
+        <p className="eyebrow">Morning Crossword</p>
+        <h3>{crossword.title ?? "Hidden itinerary"}</h3>
+      </div>
+      <div className="crossword-board-column">
+        <div
+          className="letter-crossword-grid"
+          style={{ gridTemplateColumns: `repeat(${crossword.grid[0]?.length ?? 1}, minmax(0, 1fr))` }}
+        >
+          {crossword.grid.flatMap((row, rowIndex) => (
+            row.map((cell, colIndex) => {
+              const key = `${rowIndex}:${colIndex}`;
+              const number = starts.get(key);
+              const value = answers[key] ?? "";
+              const isCorrect = value && value === cell;
+              const isIncorrect = checked && value && value !== cell;
+
+              if (!cell) {
+                return <span className="letter-crossword-cell empty" key={key} />;
+              }
+
+              return (
+                <label
+                  className={`letter-crossword-cell playable ${checked && isCorrect ? "correct" : ""} ${isIncorrect ? "incorrect" : ""}`}
+                  key={key}
+                >
+                  {number ? <small>{number}</small> : null}
+                  <input
+                    aria-label={`Crossword cell ${rowIndex + 1}, ${colIndex + 1}`}
+                    inputMode="text"
+                    maxLength={1}
+                    onChange={(event) => updateCell(key, event.target.value)}
+                    value={value}
+                  />
+                </label>
+              );
+            })
+          ))}
+        </div>
+      </div>
+      <div className="crossword-side-column">
+        <ol className="letter-crossword-clues interactive-clues">
+          {crossword.entries.map((entry) => {
+            const status = checked ? entryStatus(entry) : "";
+            return (
+              <li className={status} key={`${entry.number}-${entry.answer}`}>
+                <strong>{entry.number} {entry.direction}</strong>
+                <span>{cleanText(entry.clue)}</span>
+              </li>
+            );
+          })}
+        </ol>
+        <div className="crossword-play-panel">
+          <div className="crossword-actions">
+            <button onClick={() => setChecked(true)} type="button">
+              <CheckCircle2 size={16} />
+              Check
+            </button>
+            <button onClick={clearPuzzle} type="button">Clear</button>
+          </div>
+          <p>
+            {checked
+              ? `${correctEntryCount} of ${crossword.entries.length} entries correct`
+            : `${filledCount} of ${totalCells} letters filled`}
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function ArtifactCard({ icon, label, value }) {
   return (
     <article className="artifact-card">
@@ -702,6 +821,22 @@ function GuestLetterPage({ error, job }) {
 
   return (
     <main className={`guest-letter-shell ${getMoodClass(response?.visit_intent?.label)}`}>
+      <header className="guest-letter-top">
+        <div>
+          <p className="eyebrow">Rosewood Letter</p>
+          <h1>{job.guest_name}</h1>
+        </div>
+        <dl>
+          <div>
+            <dt>Property</dt>
+            <dd>{job.location}</dd>
+          </div>
+          <div>
+            <dt>Suite</dt>
+            <dd>{job.suite}</dd>
+          </div>
+        </dl>
+      </header>
       <section className="guest-letter-layout">
         <article className="letter-preview guest-facing">
           <header className="letter-head">
@@ -716,21 +851,27 @@ function GuestLetterPage({ error, job }) {
               <p key={paragraph}>{paragraph}</p>
             ))}
           </div>
-          <LetterCrossword crossword={crossword} />
+          <InteractiveCrossword crossword={crossword} />
         </article>
 
         <aside className="guest-note-panel">
-          <p className="eyebrow">A personal note from Rosewood</p>
-          <h1>{job.guest_name}</h1>
-          <p>{job.location} · Suite {job.suite}</p>
-          {response?.audio?.audio_url ? (
-            <audio controls src={response.audio.audio_url}>
-              <track kind="captions" />
-            </audio>
-          ) : (
-            <p className="audio-missing">The written note is ready. The voice note has not been generated yet.</p>
-          )}
-          <p className="guest-script">"{cleanText(response?.audio_script ?? "")}"</p>
+          <section className="guest-audio-card">
+            <div className="guest-audio-mark">
+              <Headphones size={22} />
+            </div>
+            <div>
+              <p className="eyebrow">Personal voice note</p>
+              <h2>Listen when the morning is ready.</h2>
+              <p>{response?.audio?.voice ?? "Rosewood voice note"}</p>
+            </div>
+            {response?.audio?.audio_url ? (
+              <audio controls src={response.audio.audio_url}>
+                <track kind="captions" />
+              </audio>
+            ) : (
+              <p className="audio-missing">The written note is ready. The voice note has not been generated yet.</p>
+            )}
+          </section>
           <CrosswordAnswerKey crossword={crossword} />
         </aside>
       </section>
