@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 import asyncio
 import logging
+import os
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
@@ -128,16 +129,22 @@ def resolve_profile(request: PipelineRequest) -> PipelineRequest:
     return request
 
 
-def attach_public_base_url(pipeline_request: PipelineRequest, http_request: Request) -> PipelineRequest:
+def attach_public_context(pipeline_request: PipelineRequest, http_request: Request) -> PipelineRequest:
     if pipeline_request.public_base_url is None:
         pipeline_request.public_base_url = str(http_request.base_url).rstrip("/")
+    if pipeline_request.frontend_base_url is None:
+        pipeline_request.frontend_base_url = (
+            os.getenv("FRONTEND_BASE_URL")
+            or http_request.headers.get("origin")
+            or "http://localhost:5173"
+        ).rstrip("/")
 
     return pipeline_request
 
 
 @app.post("/pipeline/run", response_model=PipelineResponse)
 async def run_pipeline(request: PipelineRequest, http_request: Request) -> PipelineResponse:
-    request = attach_public_base_url(resolve_profile(request), http_request)
+    request = attach_public_context(resolve_profile(request), http_request)
     return await pipeline.arun(request)
 
 
@@ -148,7 +155,7 @@ async def run_pipeline_batch(batch: PipelineBatchRequest, http_request: Request)
     async def run_one(index: int, request: PipelineRequest) -> PipelineBatchResult:
         async with semaphore:
             try:
-                resolved = attach_public_base_url(resolve_profile(request), http_request)
+                resolved = attach_public_context(resolve_profile(request), http_request)
                 response = await pipeline.arun(resolved)
                 return PipelineBatchResult(
                     index=index,
@@ -194,7 +201,7 @@ async def run_pipeline_batch(batch: PipelineBatchRequest, http_request: Request)
 @app.post("/pipeline/jobs", response_model=PipelineJobBatchState)
 async def start_pipeline_jobs(batch: PipelineJobStartRequest, http_request: Request) -> PipelineJobBatchState:
     resolved_requests = [
-        attach_public_base_url(resolve_profile(request), http_request)
+        attach_public_context(resolve_profile(request), http_request)
         for request in batch.requests
     ]
     state = job_store.create_batch(

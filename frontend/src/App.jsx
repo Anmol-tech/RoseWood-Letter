@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import {
   getDemoScenarios,
+  getRosewoodJobHistoryItem,
   getRosewoodPipelineJobs,
   listRosewoodJobHistory,
   startRosewoodPipelineJobs,
@@ -34,6 +35,16 @@ const PIPELINE_STAGES = [
 
 function cleanText(text = "") {
   return text.replace(/\u2014/g, ", ").replace(/\u2013/g, "-");
+}
+
+function getQrImageUrl(qrUrl = "", size = 180) {
+  if (!qrUrl) return "";
+  return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&margin=10&data=${encodeURIComponent(qrUrl)}`;
+}
+
+function getGuestLetterJobId() {
+  const match = window.location.pathname.match(/^\/letter\/([^/]+)$/);
+  return match ? decodeURIComponent(match[1]) : "";
 }
 
 function getMoodClass(label = "") {
@@ -420,6 +431,8 @@ function CompletedJobDetail({ job }) {
   const letter = response?.letter;
   const crossword = response?.crossword;
   const paragraphs = (letter?.paragraphs ?? []).map(cleanText);
+  const qrUrl = response?.print_artifact?.qr_url || letter?.qr_url || "";
+  const qrImageUrl = getQrImageUrl(qrUrl);
 
   return (
     <section className={`detail-panel result-detail ${moodClass}`}>
@@ -451,22 +464,28 @@ function CompletedJobDetail({ job }) {
           </div>
           <LetterCrossword crossword={crossword} />
           <footer className="letter-foot">
-            <div className="qr-mark" aria-label="QR code placeholder" />
+            {qrImageUrl ? (
+              <a className="qr-mark real" href={qrUrl} rel="noreferrer" target="_blank">
+                <img alt="QR code for the personal Rosewood note" src={qrImageUrl} />
+              </a>
+            ) : (
+              <div className="qr-mark" aria-label="QR code placeholder" />
+            )}
             <span>{letter?.qr_caption ?? "A personal note from Rosewood."}</span>
           </footer>
         </article>
 
         <aside className="artifact-stack">
-          <ArtifactCard icon={<Printer size={18} />} label="Print" value={response?.print_artifact.print_status} />
-          <ArtifactCard icon={<Headphones size={18} />} label="Voice" value={response?.audio.voice} />
-          <ArtifactCard icon={<QrCode size={18} />} label="QR" value={response?.print_artifact.qr_url} />
+          <ArtifactCard icon={<Printer size={18} />} label="Print" value={response?.print_artifact?.print_status} />
+          <ArtifactCard icon={<Headphones size={18} />} label="Voice" value={response?.audio?.voice} />
+          <ArtifactCard icon={<QrCode size={18} />} label="QR" value={response?.print_artifact?.qr_url} />
           <CrosswordAnswerKey crossword={crossword} />
           <article className="artifact-card audio-card">
             <div>
               <p className="eyebrow">ElevenLabs voice note</p>
-              <strong>{response?.audio.status ?? "script_ready"}</strong>
+              <strong>{response?.audio?.status ?? "script_ready"}</strong>
               <p>"{cleanText(response?.audio_script ?? "")}"</p>
-              {response?.audio.audio_url ? (
+              {response?.audio?.audio_url ? (
                 <audio controls src={response.audio.audio_url}>
                   <track kind="captions" />
                 </audio>
@@ -476,8 +495,8 @@ function CompletedJobDetail({ job }) {
             </div>
             <a
               aria-label="Open audio file"
-              className={response?.audio.audio_url ? "" : "disabled"}
-              href={response?.audio.audio_url ?? "#"}
+              className={response?.audio?.audio_url ? "" : "disabled"}
+              href={response?.audio?.audio_url ?? "#"}
               rel="noreferrer"
               target="_blank"
             >
@@ -494,10 +513,15 @@ function CrosswordAnswerKey({ crossword }) {
   if (!crossword?.entries?.length) return null;
 
   return (
-    <article className="artifact-card crossword-answer-card">
-      <FileText size={18} />
-      <div>
-        <p className="eyebrow">Crossword answer key</p>
+    <details className="artifact-card crossword-answer-card">
+      <summary>
+        <FileText size={18} />
+        <span>
+          <p className="eyebrow">Crossword answer key</p>
+          <strong>{crossword.entries.length} answers</strong>
+        </span>
+      </summary>
+      <div className="answer-list-wrap">
         <ul>
           {crossword.entries.map((entry) => (
             <li key={`${entry.number}-${entry.answer}`}>
@@ -507,7 +531,7 @@ function CrosswordAnswerKey({ crossword }) {
           ))}
         </ul>
       </div>
-    </article>
+    </details>
   );
 }
 
@@ -569,6 +593,74 @@ function ArtifactCard({ icon, label, value }) {
   );
 }
 
+function GuestLetterPage({ error, job }) {
+  if (error) {
+    return (
+      <main className="guest-letter-shell">
+        <section className="guest-letter-status">
+          <AlertTriangle size={24} />
+          <h1>We could not open this note.</h1>
+          <p>{error}</p>
+        </section>
+      </main>
+    );
+  }
+
+  if (!job || job.status !== "completed") {
+    return (
+      <main className="guest-letter-shell">
+        <section className="guest-letter-status">
+          <Loader2 className="spin" size={24} />
+          <h1>Your Rosewood note is being prepared.</h1>
+          <p>{job?.current_agents?.[0] ?? "The final artifact is still settling into place."}</p>
+        </section>
+      </main>
+    );
+  }
+
+  const response = job.response;
+  const letter = response?.letter;
+  const crossword = response?.crossword;
+  const paragraphs = (letter?.paragraphs ?? []).map(cleanText);
+
+  return (
+    <main className={`guest-letter-shell ${getMoodClass(response?.visit_intent?.label)}`}>
+      <section className="guest-letter-layout">
+        <article className="letter-preview guest-facing">
+          <header className="letter-head">
+            <div className="letter-brand">
+              <span>ROSEWOOD</span>
+              <small>{letter?.date_line ?? "Morning letter"}</small>
+            </div>
+          </header>
+          <div className="letter-body">
+            <p className="salutation">{cleanText(letter?.salutation ?? `Good morning, ${job.guest_name}.`)}</p>
+            {paragraphs.map((paragraph) => (
+              <p key={paragraph}>{paragraph}</p>
+            ))}
+          </div>
+          <LetterCrossword crossword={crossword} />
+        </article>
+
+        <aside className="guest-note-panel">
+          <p className="eyebrow">A personal note from Rosewood</p>
+          <h1>{job.guest_name}</h1>
+          <p>{job.location} · Suite {job.suite}</p>
+          {response?.audio?.audio_url ? (
+            <audio controls src={response.audio.audio_url}>
+              <track kind="captions" />
+            </audio>
+          ) : (
+            <p className="audio-missing">The written note is ready. The voice note has not been generated yet.</p>
+          )}
+          <p className="guest-script">"{cleanText(response?.audio_script ?? "")}"</p>
+          <CrosswordAnswerKey crossword={crossword} />
+        </aside>
+      </section>
+    </main>
+  );
+}
+
 export default function App() {
   const [scenarios, setScenarios] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -577,9 +669,53 @@ export default function App() {
   const [batch, setBatch] = useState(null);
   const [jobHistory, setJobHistory] = useState([]);
   const [selectedJobId, setSelectedJobId] = useState("");
+  const [guestLetterJobId, setGuestLetterJobId] = useState(getGuestLetterJobId);
+  const [guestLetterJob, setGuestLetterJob] = useState(null);
+  const [guestLetterError, setGuestLetterError] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
+    function handleRouteChange() {
+      setGuestLetterJobId(getGuestLetterJobId());
+    }
+
+    window.addEventListener("popstate", handleRouteChange);
+    return () => window.removeEventListener("popstate", handleRouteChange);
+  }, []);
+
+  useEffect(() => {
+    if (!guestLetterJobId) return undefined;
+
+    let cancelled = false;
+    let interval = null;
+
+    async function loadGuestLetter() {
+      try {
+        const job = await getRosewoodJobHistoryItem(guestLetterJobId);
+        if (cancelled) return;
+        setGuestLetterJob(job);
+        setGuestLetterError("");
+        if (job.status === "completed" || job.status === "failed") {
+          if (interval) window.clearInterval(interval);
+        }
+      } catch (loadError) {
+        if (cancelled) return;
+        setGuestLetterError(loadError.message);
+      }
+    }
+
+    loadGuestLetter();
+    interval = window.setInterval(loadGuestLetter, 1400);
+
+    return () => {
+      cancelled = true;
+      if (interval) window.clearInterval(interval);
+    };
+  }, [guestLetterJobId]);
+
+  useEffect(() => {
+    if (guestLetterJobId) return;
+
     getDemoScenarios()
       .then((items) => {
         setScenarios(items);
@@ -595,7 +731,7 @@ export default function App() {
         setSelectedJobId((current) => current || jobs[0]?.job_id || "");
       })
       .catch(() => {});
-  }, []);
+  }, [guestLetterJobId]);
 
   useEffect(() => {
     if (!batch?.batch_id) return undefined;
@@ -650,6 +786,10 @@ export default function App() {
     } catch (startError) {
       setError(startError.message);
     }
+  }
+
+  if (guestLetterJobId) {
+    return <GuestLetterPage error={guestLetterError} job={guestLetterJob} />;
   }
 
   return (

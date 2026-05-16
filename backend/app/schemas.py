@@ -56,6 +56,8 @@ class PipelineRequest(BaseModel):
     profile: GuestProfile = Field(default_factory=GuestProfile)
     ambient_signals: list[AmbientSignal] = Field(default_factory=list)
     public_base_url: str | None = None
+    frontend_base_url: str | None = None
+    artifact_id: str | None = None
 
 
 class PipelineBatchRequest(BaseModel):
@@ -152,6 +154,7 @@ class LetterArtifact(BaseModel):
     salutation: str
     paragraphs: list[str]
     qr_caption: str
+    qr_url: str = ""
     html: str = ""
     pdf_status: str = "pending"
     markdown_path: str | None = None

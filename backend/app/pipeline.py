@@ -6,6 +6,7 @@ from datetime import datetime
 from html import escape
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 from app.agents import (
     AudioAgent,
@@ -161,16 +162,19 @@ class RosewoodPipeline:
             title=context["Crossword Agent"]["title"],
             clues=crossword_output.get("clues", []),
         )
+        qr_url = self._guest_letter_url(request)
 
         letter = LetterArtifact(
             date_line="Morning letter · May 17, 2030",
             salutation=f"Good morning, {request.profile.guest_name}.",
             paragraphs=letter_paragraphs,
             qr_caption="A personal note from Rosewood.",
+            qr_url=qr_url,
             html=self._compose_letter_html(
                 guest_name=request.profile.guest_name,
                 paragraphs=letter_paragraphs,
                 crossword=crossword,
+                qr_url=qr_url,
             ),
             pdf_status="html_ready",
         )
@@ -193,7 +197,7 @@ class RosewoodPipeline:
 
         print_artifact = PrintArtifact(
             paper_scent=compositor_output.get("paper_scent", visit_intent.scent_profile),
-            qr_url=f"https://rosewood.local/letters/{request.profile.suite}/audio",
+            qr_url=qr_url,
             qr_caption=letter.qr_caption,
             print_status="ready_for_composition",
             delivery_window=compositor_output.get("delivery_window", "06:00"),
@@ -305,6 +309,16 @@ class RosewoodPipeline:
 
     def _clean_prose(self, text: str) -> str:
         return text.replace("\u2014", ", ").replace("\u2013", "-")
+
+    def _guest_letter_url(self, request: PipelineRequest) -> str:
+        base_url = (request.frontend_base_url or request.public_base_url or "").rstrip("/")
+        artifact_id = request.artifact_id or self._slugify(f"{request.profile.suite}-{request.profile.guest_name}")
+        path = f"/letter/{artifact_id}"
+        return f"{base_url}{path}" if base_url else path
+
+    def _qr_image_url(self, qr_url: str, *, size: int = 220) -> str:
+        encoded_url = quote(qr_url, safe="")
+        return f"https://api.qrserver.com/v1/create-qr-code/?size={size}x{size}&margin=10&data={encoded_url}"
 
     def _build_crossword(self, *, title: str, clues: list[dict]) -> CrosswordArtifact:
         normalized_clues = self._normalize_crossword_clues(clues)
@@ -530,7 +544,7 @@ class RosewoodPipeline:
             f"{letter.salutation}\n\n"
             f"{paragraphs}\n\n"
             f"{crossword_markdown}\n\n"
-            f"{letter.qr_caption}\n"
+            f"{letter.qr_caption}: {letter.qr_url}\n"
         )
 
     def _slugify(self, value: str) -> str:
@@ -600,14 +614,21 @@ class RosewoodPipeline:
         guest_name: str,
         paragraphs: list[str],
         crossword: CrosswordArtifact,
+        qr_url: str,
     ) -> str:
         body = "".join(f"<p>{escape(self._clean_prose(paragraph))}</p>" for paragraph in paragraphs)
         crossword_html = self._compose_crossword_html(crossword)
+        qr_image_url = self._qr_image_url(qr_url)
         return (
             "<article class=\"rosewood-letter\">"
             "<header><strong>ROSEWOOD</strong><span>Morning letter</span></header>"
             f"<main><p><strong>Good morning, {escape(guest_name)}.</strong></p>{body}{crossword_html}</main>"
-            "<footer>A personal note from Rosewood.</footer>"
+            "<footer>"
+            f"<a href=\"{escape(qr_url)}\">"
+            f"<img alt=\"QR code for the personal Rosewood note\" src=\"{escape(qr_image_url)}\" width=\"96\" height=\"96\" />"
+            "</a>"
+            "<span>A personal note from Rosewood.</span>"
+            "</footer>"
             "</article>"
         )
 

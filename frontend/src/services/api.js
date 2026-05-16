@@ -68,6 +68,16 @@ export async function listRosewoodJobHistory() {
   return response.json();
 }
 
+export async function getRosewoodJobHistoryItem(jobId) {
+  const response = await fetch(`${API_BASE_URL}/pipeline/job-history/${jobId}`);
+
+  if (!response.ok) {
+    throw new Error(`Pipeline job lookup failed with ${response.status}`);
+  }
+
+  return response.json();
+}
+
 export async function getRosewoodPipelineJobs(batchId) {
   const response = await fetch(`${API_BASE_URL}/pipeline/jobs/${batchId}`);
 

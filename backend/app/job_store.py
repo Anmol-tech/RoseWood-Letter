@@ -109,6 +109,7 @@ class PipelineJobStore:
                     created_at=now,
                     updated_at=now,
                 )
+                request.artifact_id = job.job_id
                 jobs.append(job)
                 request_map[job.job_id] = request
                 connection.execute(
