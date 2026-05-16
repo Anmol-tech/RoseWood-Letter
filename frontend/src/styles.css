@@ -1157,9 +1157,8 @@ h4 {
   position: absolute;
   left: 0;
   right: 0;
-  top: calc(100% + 0.45rem);
+  bottom: calc(100% + 0.45rem);
   z-index: 5;
-  display: none;
   padding: 0.72rem 0.78rem;
   border: 1px solid color-mix(in srgb, var(--mood-accent-2) 32%, transparent);
   border-radius: 0.4rem;
@@ -1168,11 +1167,16 @@ h4 {
   color: rgba(255, 255, 255, 0.82);
   font-size: 0.78rem;
   line-height: 1.45;
+  opacity: 0;
+  pointer-events: none;
+  translate: 0 0.25rem;
+  transition: opacity 0.18s ease, translate 0.18s ease;
 }
 
-.reservation-option:hover .reservation-description-popover,
-.reservation-option:focus-within .reservation-description-popover {
-  display: block;
+.reservation-description-wrap:hover .reservation-description-popover {
+  opacity: 1;
+  pointer-events: auto;
+  translate: 0 0;
 }
 
 .reservation-actions {
