@@ -72,6 +72,59 @@ function getScenarioLocation(scenario) {
   return scenario?.request?.profile?.property_location ?? "Rosewood Property";
 }
 
+const RESERVABLE_PATTERN = /\b(reserve|reservation|book|booking|hold|table|tasting|dinner|lunch|breakfast|spa|treatment|private|chef|room|transfer|car|appointment|session|ticket|tour)\b/i;
+
+function reservationTitle(text = "", fallback = "Rosewood arrangement") {
+  const cleaned = cleanText(text).replace(/^ask\s+the\s+/i, "").trim();
+  const firstSentence = cleaned.split(/[.!?]/)[0] || cleaned || fallback;
+  return firstSentence.length > 68 ? `${firstSentence.slice(0, 65).trim()}...` : firstSentence;
+}
+
+function buildReservationOptions(response) {
+  if (!response) return [];
+
+  const candidates = [
+    {
+      id: "discovery",
+      label: "Discovery",
+      title: response.discovery?.place_name || response.discovery?.title || "Local discovery",
+      detail: response.discovery?.recommendation,
+    },
+    {
+      id: "morning",
+      label: "Morning",
+      title: "Morning arrangement",
+      detail: response.rhythm_arc?.morning,
+    },
+    {
+      id: "afternoon",
+      label: "Afternoon",
+      title: "Afternoon arrangement",
+      detail: response.rhythm_arc?.afternoon,
+    },
+    {
+      id: "evening",
+      label: "Evening",
+      title: "Evening arrangement",
+      detail: response.rhythm_arc?.evening,
+    },
+    {
+      id: "chef",
+      label: "Dining",
+      title: "Chef's note",
+      detail: response.world_context?.chef_note,
+    },
+  ];
+
+  return candidates
+    .filter((item) => item.detail && RESERVABLE_PATTERN.test(item.detail))
+    .map((item) => ({
+      ...item,
+      title: item.id === "discovery" ? item.title : reservationTitle(item.detail, item.title),
+      detail: cleanText(item.detail),
+    }));
+}
+
 function mapIntent(intent) {
   if (!intent) {
     return {
@@ -856,6 +909,76 @@ function SuggestedLocationCard({ distanceHint }) {
   );
 }
 
+function ReservationPanel({ options }) {
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [reservationStatus, setReservationStatus] = useState("");
+
+  useEffect(() => {
+    setSelectedIds(options.map((option) => option.id));
+    setReservationStatus("");
+  }, [options]);
+
+  if (!options.length) return null;
+
+  const selectedOptions = options.filter((option) => selectedIds.includes(option.id));
+
+  function toggleOption(optionId) {
+    setSelectedIds((current) => (
+      current.includes(optionId)
+        ? current.filter((id) => id !== optionId)
+        : [...current, optionId]
+    ));
+    setReservationStatus("");
+  }
+
+  function reserveSelected() {
+    if (!selectedOptions.length) return;
+    setReservationStatus(`${selectedOptions.length} request${selectedOptions.length === 1 ? "" : "s"} sent to Rosewood.`);
+  }
+
+  function reserveWholeDay() {
+    setSelectedIds(options.map((option) => option.id));
+    setReservationStatus("Full-day reservation request sent to Rosewood.");
+  }
+
+  return (
+    <section className="guest-reservation-card" aria-label="Reserve itinerary options">
+      <div>
+        <p className="eyebrow">Reserve from the letter</p>
+        <h2>Keep the useful parts close.</h2>
+      </div>
+      <div className="reservation-option-list">
+        {options.map((option) => (
+          <label className="reservation-option" key={option.id}>
+            <input
+              checked={selectedIds.includes(option.id)}
+              onChange={() => toggleOption(option.id)}
+              type="checkbox"
+            />
+            <span>
+              <small>{option.label}</small>
+              <strong>{option.title}</strong>
+              <em>{option.detail}</em>
+            </span>
+          </label>
+        ))}
+      </div>
+      <div className="reservation-actions">
+        <button disabled={!selectedOptions.length} onClick={reserveSelected} type="button">
+          <CheckCircle2 size={16} />
+          Reserve selected
+        </button>
+        {options.length > 1 ? (
+          <button onClick={reserveWholeDay} type="button">
+            Reserve whole day
+          </button>
+        ) : null}
+      </div>
+      {reservationStatus ? <p className="reservation-status">{reservationStatus}</p> : null}
+    </section>
+  );
+}
+
 function ArtifactCard({ icon, label, value }) {
   return (
     <article className="artifact-card">
@@ -897,6 +1020,7 @@ function GuestLetterPage({ error, job }) {
   const letter = response?.letter;
   const crossword = response?.crossword;
   const distanceHint = response?.discovery?.distance_hint;
+  const reservationOptions = buildReservationOptions(response);
   const paragraphs = (letter?.paragraphs ?? []).map(cleanText);
 
   return (
@@ -956,6 +1080,7 @@ function GuestLetterPage({ error, job }) {
             )}
           </section>
           <SuggestedLocationCard distanceHint={distanceHint} />
+          <ReservationPanel options={reservationOptions} />
           <CrosswordAnswerKey crossword={crossword} />
         </aside>
       </section>

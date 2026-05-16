@@ -941,6 +941,7 @@ h4 {
 }
 
 .guest-audio-card,
+.guest-reservation-card,
 .guest-note-panel .crossword-answer-card {
   border: 1px solid var(--line);
   border-radius: 0.5rem;
@@ -1077,6 +1078,111 @@ h4 {
 .location-distance-popover small {
   color: rgba(255, 255, 255, 0.62);
   font-size: 0.76rem;
+}
+
+.guest-reservation-card {
+  display: grid;
+  gap: 0.9rem;
+  padding: 1rem;
+}
+
+.guest-reservation-card h2 {
+  margin: 0;
+  color: var(--paper);
+  font-size: 1.35rem;
+  line-height: 1.08;
+}
+
+.reservation-option-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.reservation-option {
+  display: grid;
+  grid-template-columns: 1rem minmax(0, 1fr);
+  gap: 0.65rem;
+  align-items: start;
+  padding: 0.72rem;
+  border: 1px solid color-mix(in srgb, var(--mood-accent-2) 28%, transparent);
+  border-radius: 0.45rem;
+  background: rgba(255, 255, 255, 0.035);
+  cursor: pointer;
+}
+
+.reservation-option input {
+  width: 1rem;
+  height: 1rem;
+  margin: 0.15rem 0 0;
+  accent-color: var(--mood-accent);
+}
+
+.reservation-option span {
+  display: grid;
+  gap: 0.18rem;
+  min-width: 0;
+}
+
+.reservation-option small {
+  color: color-mix(in srgb, var(--mood-accent-2) 82%, var(--paper));
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.reservation-option strong {
+  color: var(--paper);
+  font-size: 0.95rem;
+  line-height: 1.25;
+}
+
+.reservation-option em {
+  overflow: hidden;
+  display: -webkit-box;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 0.78rem;
+  font-style: normal;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.reservation-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem;
+}
+
+.reservation-actions button {
+  display: inline-flex;
+  min-height: 2.55rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.65rem 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--mood-accent) 36%, transparent);
+  border-radius: 0.4rem;
+  background: color-mix(in srgb, var(--mood-accent) 18%, rgba(255, 255, 255, 0.04));
+  color: var(--paper);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.reservation-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.reservation-actions button:only-child {
+  grid-column: 1 / -1;
+}
+
+.reservation-status {
+  margin: 0;
+  color: color-mix(in srgb, var(--mood-accent) 74%, var(--paper));
+  font-size: 0.84rem;
+  line-height: 1.4;
 }
 
 .guest-letter-status {
