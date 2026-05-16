@@ -1,22 +1,25 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
+  CalendarClock,
+  FileText,
   Headphones,
-  Leaf,
   Moon,
   Play,
   Printer,
+  QrCode,
+  Radio,
   Sparkles,
 } from "lucide-react";
 import {
   audioScript,
-  defaultPipelineRequest,
+  fallbackScenarios,
   letterParagraphs,
   memorySignals,
   pipelineStages,
   visitIntent,
 } from "./data/rosewoodPipeline.js";
-import { runRosewoodPipeline } from "./services/api.js";
+import { getDemoScenarios, runRosewoodPipeline } from "./services/api.js";
 
 function mapIntent(intent) {
   if (!intent) return visitIntent;
@@ -42,88 +45,129 @@ function mapStages(outputs) {
   }));
 }
 
-function mapMemorySignals(signals) {
-  if (!signals?.length) return memorySignals;
+function mapMemorySignals(response, request) {
+  if (response?.memory?.signals?.length) {
+    return [
+      ...response.memory.signals,
+      {
+        time: "Signal",
+        signal: response.memory.inferred_pattern,
+      },
+    ];
+  }
 
-  return [
-    ...signals,
-    {
-      time: "Signal",
-      signal: "Guest wanted space first, care second.",
-    },
-  ];
+  if (request?.ambient_signals?.length) {
+    return request.ambient_signals;
+  }
+
+  return memorySignals;
 }
 
 function Sidebar() {
   return (
-    <aside className="sidebar" aria-label="Rosewood Letter workspace">
+    <aside className="sidebar" aria-label="Rosewood Letter operations">
       <div className="brand-lockup">
         <span className="brand-mark">R</span>
         <div>
-          <p className="eyebrow">Rosewood 2030</p>
-          <h1>The Letter</h1>
+          <p className="eyebrow">Rosewood Letter</p>
+          <h1>Night Ops</h1>
         </div>
       </div>
 
       <nav className="nav-stack" aria-label="Primary">
-        <a className="nav-item active" href="#pipeline">
-          <Activity size={17} />
-          Pipeline
+        <a className="nav-item active" href="#queue">
+          <CalendarClock size={17} />
+          Queue
         </a>
-        <a className="nav-item" href="#intent">
-          <Sparkles size={17} />
-          Intent
+        <a className="nav-item" href="#pipeline">
+          <Activity size={17} />
+          Trace
         </a>
         <a className="nav-item" href="#letter">
           <Printer size={17} />
-          Morning Letter
+          Print Studio
         </a>
         <a className="nav-item" href="#audio">
           <Headphones size={17} />
-          Audio Note
+          Voice Note
         </a>
       </nav>
 
       <div className="night-run">
-        <p className="eyebrow">Next overnight run</p>
-        <strong>03:00</strong>
-        <span>Print handoff by 05:42</span>
+        <p className="eyebrow">Dawn handoff</p>
+        <strong>05:42</strong>
+        <span>Letter, QR, scent, voice script</span>
       </div>
     </aside>
   );
 }
 
-function Topbar() {
+function Topbar({ profile, runState }) {
+  const stateLabel = runState === "running" ? "Running overnight pass" : "Ready for 03:00 run";
+
   return (
     <section className="topbar" aria-label="Current guest context">
       <div>
-        <p className="eyebrow">Guest stay</p>
-        <h2>Suite 804 · Arrival tonight</h2>
+        <p className="eyebrow">Hotel staff console</p>
+        <h2>Suite {profile.suite} · {profile.guest_name}</h2>
       </div>
       <div className="status-pill">
         <span className="pulse" />
-        Pipeline ready
+        {stateLabel}
       </div>
     </section>
   );
 }
 
-function HeroBand() {
+function OperationsQueue({ profile, intent, printArtifact, audio }) {
+  const cells = [
+    ["Run window", "03:00", "Silent agent pass"],
+    ["Print handoff", printArtifact?.delivery_window ?? "06:00", printArtifact?.print_status ?? "ready"],
+    ["Scent", intent.scentProfile, "paper profile"],
+    ["Voice", audio?.voice ?? "soft and slow", audio?.status ?? "script ready"],
+  ];
+
   return (
-    <section className="hero-band">
-      <div className="hero-copy">
-        <p className="eyebrow">Invisible AI dashboard</p>
-        <h2>A silent overnight system that leaves one physical trace.</h2>
+    <section className="ops-board" id="queue">
+      <div className="ops-copy">
+        <p className="eyebrow">Night operations console</p>
+        <h2>One guest, one morning artifact.</h2>
         <p>
-          Agents infer why the guest is here, shape the emotional rhythm of the day,
-          discover one precise local secret, and compose a scented print artifact before
-          breakfast.
+          {profile.booking_notes}
         </p>
       </div>
-      <div className="artifact-signal" aria-label="Letter artifact signal">
-        <span>cedar</span>
-        <span>fog</span>
-        <span>linen</span>
+      <div className="ops-grid" aria-label="Production queue">
+        {cells.map(([label, value, meta]) => (
+          <div className="ops-cell" key={label}>
+            <span>{label}</span>
+            <strong>{value}</strong>
+            <small>{meta}</small>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ScenarioConsole({ scenarios, selectedId, onSelect }) {
+  return (
+    <section className="scenario-console" aria-label="Demo guest scenarios">
+      <div className="section-label">
+        <Radio size={17} />
+        <span>Guest Profile + Stay Context</span>
+      </div>
+      <div className="scenario-rail">
+        {scenarios.map((scenario) => (
+          <button
+            className={`scenario-tab${scenario.id === selectedId ? " active" : ""}`}
+            key={scenario.id}
+            onClick={() => onSelect(scenario.id)}
+            type="button"
+          >
+            <strong>{scenario.title}</strong>
+            <span>{scenario.description}</span>
+          </button>
+        ))}
       </div>
     </section>
   );
@@ -163,10 +207,10 @@ function MemoryPanel({ signals }) {
     <article className="panel memory-panel">
       <div className="panel-header">
         <div>
-          <p className="eyebrow">Ambient memory</p>
-          <h3>Learns without asking</h3>
+          <p className="eyebrow">Memory Agent</p>
+          <h3>Ambient signals</h3>
         </div>
-        <span className="soft-tag">Day 2 seed</span>
+        <span className="soft-tag">zero survey</span>
       </div>
       <div className="memory-stream">
         {signals.map((item) => (
@@ -184,8 +228,8 @@ function PipelinePanel({ stages, onRun, runState }) {
   const isRunning = runState === "running";
 
   const buttonText = useMemo(() => {
-    if (runState === "error") return "Retry pipeline";
-    if (!isRunning) return "Run simulation";
+    if (runState === "error") return "Retry overnight run";
+    if (!isRunning) return "Run 03:00 pass";
     return stages[activeStage]?.statusText ?? "Pipeline complete";
   }, [activeStage, isRunning, runState, stages]);
 
@@ -206,8 +250,8 @@ function PipelinePanel({ stages, onRun, runState }) {
     <section className="panel pipeline-panel" id="pipeline">
       <div className="panel-header">
         <div>
-          <p className="eyebrow">3AM orchestration</p>
-          <h3>Agent pipeline</h3>
+          <p className="eyebrow">Execution trace</p>
+          <h3>3AM agent run</h3>
         </div>
         <button className="primary-action" type="button" onClick={runPipeline} disabled={isRunning}>
           <Moon size={17} />
@@ -260,17 +304,46 @@ function LetterPreview({ letter }) {
   );
 }
 
-function AudioPanel({ script }) {
+function ArtifactSpec({ printArtifact, letter }) {
+  const specs = [
+    ["Format", letter?.pdf_status ?? "html ready"],
+    ["Scent", printArtifact?.paper_scent ?? visitIntent.scentProfile],
+    ["QR", printArtifact?.qr_url ?? "pending voice note"],
+    ["Status", printArtifact?.print_status ?? "ready for composition"],
+  ];
+
+  return (
+    <article className="panel spec-panel">
+      <div className="panel-header">
+        <div>
+          <p className="eyebrow">Letter Composer</p>
+          <h3>Print artifact studio</h3>
+        </div>
+        <FileText size={20} />
+      </div>
+      <dl className="spec-list">
+        {specs.map(([label, value]) => (
+          <div key={label}>
+            <dt>{label}</dt>
+            <dd>{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </article>
+  );
+}
+
+function AudioPanel({ audio, script }) {
   return (
     <article className="panel" id="audio">
       <div className="panel-header">
         <div>
-          <p className="eyebrow">Audio Agent</p>
-          <h3>60 second note</h3>
+          <p className="eyebrow">Audio Script Agent</p>
+          <h3>Voice note</h3>
         </div>
-        <span className="soft-tag">soft · slow</span>
+        <span className="soft-tag">{audio?.voice ?? "soft · slow"}</span>
       </div>
-      <p className="script">“{script}”</p>
+      <p className="script">"{script}"</p>
       <div className="audio-bar">
         <button type="button" aria-label="Play audio preview">
           <Play size={17} fill="currentColor" />
@@ -281,34 +354,15 @@ function AudioPanel({ script }) {
   );
 }
 
-function CrosswordPanel() {
+function CrosswordPanel({ crossword }) {
   const cells = [
-    false,
-    false,
-    true,
-    false,
-    false,
-    true,
-    false,
-    false,
-    false,
-    true,
-    false,
-    false,
-    false,
-    true,
-    false,
-    false,
-    true,
-    false,
-    false,
-    false,
-    true,
-    false,
-    false,
-    false,
-    false,
+    false, false, true, false, false,
+    true, false, false, false, true,
+    false, false, false, true, false,
+    false, true, false, false, false,
+    true, false, false, false, false,
   ];
+  const clues = crossword?.clues?.slice(0, 3) ?? [];
 
   return (
     <article className="panel">
@@ -317,33 +371,84 @@ function CrosswordPanel() {
           <p className="eyebrow">Crossword Agent</p>
           <h3>Hidden itinerary</h3>
         </div>
-        <span className="soft-tag">4 clues</span>
+        <span className="soft-tag">{clues.length || 4} clues</span>
       </div>
       <div className="crossword" aria-label="Crossword preview">
         {cells.map((filled, index) => (
           <span className={filled ? "filled" : ""} key={index} />
         ))}
       </div>
+      {clues.length ? (
+        <ul className="clue-list">
+          {clues.map((clue) => (
+            <li key={`${clue.clue}-${clue.answer}`}>
+              <span>{clue.clue}</span>
+              <strong>{clue.answer}</strong>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </article>
+  );
+}
+
+function QRPanel({ printArtifact }) {
+  return (
+    <article className="panel qr-panel">
+      <div className="panel-header">
+        <div>
+          <p className="eyebrow">QR Code</p>
+          <h3>Guest handoff</h3>
+        </div>
+        <QrCode size={20} />
+      </div>
+      <div className="handoff-row">
+        <div className="qr-mark large" aria-label="QR code placeholder" />
+        <p>{printArtifact?.qr_caption ?? "A personal note from Rosewood."}</p>
+      </div>
     </article>
   );
 }
 
 export default function App() {
+  const [scenarios, setScenarios] = useState(fallbackScenarios);
+  const [selectedScenarioId, setSelectedScenarioId] = useState(fallbackScenarios[0].id);
   const [pipelineResponse, setPipelineResponse] = useState(null);
   const [runState, setRunState] = useState("idle");
   const [runError, setRunError] = useState("");
 
+  useEffect(() => {
+    getDemoScenarios()
+      .then((items) => {
+        setScenarios(items);
+        setSelectedScenarioId((current) => (items.some((item) => item.id === current) ? current : items[0].id));
+      })
+      .catch(() => {
+        setScenarios(fallbackScenarios);
+      });
+  }, []);
+
+  const selectedScenario = scenarios.find((scenario) => scenario.id === selectedScenarioId) ?? scenarios[0];
+  const selectedRequest = selectedScenario.request;
+  const profile = pipelineResponse?.profile ?? selectedRequest.profile;
   const intent = mapIntent(pipelineResponse?.visit_intent);
   const stages = mapStages(pipelineResponse?.outputs);
-  const signals = mapMemorySignals(defaultPipelineRequest.ambient_signals);
+  const signals = mapMemorySignals(pipelineResponse, selectedRequest);
   const currentAudioScript = pipelineResponse?.audio_script ?? audioScript;
+
+  function selectScenario(scenarioId) {
+    setSelectedScenarioId(scenarioId);
+    setPipelineResponse(null);
+    setRunState("idle");
+    setRunError("");
+  }
 
   async function handleRunPipeline() {
     setRunState("running");
     setRunError("");
 
     try {
-      const response = await runRosewoodPipeline(defaultPipelineRequest);
+      const response = await runRosewoodPipeline(selectedRequest);
       setPipelineResponse(response);
       setRunState("complete");
     } catch (error) {
@@ -356,8 +461,19 @@ export default function App() {
     <div className="app-shell">
       <Sidebar />
       <main className="workspace">
-        <Topbar />
-        <HeroBand />
+        <Topbar profile={profile} runState={runState} />
+        <OperationsQueue
+          audio={pipelineResponse?.audio}
+          intent={intent}
+          printArtifact={pipelineResponse?.print_artifact}
+          profile={profile}
+        />
+
+        <ScenarioConsole
+          onSelect={selectScenario}
+          scenarios={scenarios}
+          selectedId={selectedScenarioId}
+        />
 
         <section className="grid-two">
           <IntentPanel intent={intent} />
@@ -367,18 +483,13 @@ export default function App() {
         <PipelinePanel stages={stages} onRun={handleRunPipeline} runState={runState} />
         {runError ? <p className="api-error">Backend unavailable: {runError}</p> : null}
 
-        <section className="grid-two letter-grid">
+        <section className="studio-grid">
           <LetterPreview letter={pipelineResponse?.letter} />
           <div className="right-stack">
-            <AudioPanel script={currentAudioScript} />
-            <CrosswordPanel />
-            <article className="panel build-next">
-              <Leaf size={22} />
-              <div>
-                <p className="eyebrow">Next build target</p>
-                <h3>Add the staff input panel and Memory Agent.</h3>
-              </div>
-            </article>
+            <ArtifactSpec letter={pipelineResponse?.letter} printArtifact={pipelineResponse?.print_artifact} />
+            <AudioPanel audio={pipelineResponse?.audio} script={currentAudioScript} />
+            <CrosswordPanel crossword={pipelineResponse?.crossword} />
+            <QRPanel printArtifact={pipelineResponse?.print_artifact} />
           </div>
         </section>
       </main>

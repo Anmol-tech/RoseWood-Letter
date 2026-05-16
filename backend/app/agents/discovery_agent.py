@@ -11,6 +11,32 @@ class DiscoveryAgent(BaseAgent):
         intent: VisitIntent | None = None,
         context: dict | None = None,
     ) -> AgentOutput:
+        label = intent.label if intent else "Quiet Restoration"
+
+        if label == "Milestone":
+            return AgentOutput(
+                agent=self.name,
+                title="The private vineyard room",
+                summary="A single local recommendation that turns the evening into a kept moment.",
+                data={
+                    "recommendation": "The small vineyard above the ridge can open its library room for two at dusk.",
+                    "reason": "They still have a bottle from the year the couple first met.",
+                    "guest_fit": label,
+                },
+            )
+
+        if label == "Celebration Discovery":
+            return AgentOutput(
+                agent=self.name,
+                title="The back-room design market",
+                summary="A lively local discovery with enough specificity to feel unlocked.",
+                data={
+                    "recommendation": "A textile dealer behind the design market is opening her private archive at noon.",
+                    "reason": "She keeps hand-dyed table linens from the same atelier dressing the chef's counter tonight.",
+                    "guest_fit": label,
+                },
+            )
+
         return AgentOutput(
             agent=self.name,
             title="Mara Kito's studio",

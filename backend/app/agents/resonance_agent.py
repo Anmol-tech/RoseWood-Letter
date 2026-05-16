@@ -11,6 +11,32 @@ class ResonanceAgent(BaseAgent):
         intent: VisitIntent | None = None,
         context: dict | None = None,
     ) -> AgentOutput:
+        label = intent.label if intent else "Quiet Restoration"
+
+        if label == "Milestone":
+            return AgentOutput(
+                agent=self.name,
+                title="The terrace date",
+                summary="One true coincidence across the couple's timing and the property's evening ritual.",
+                data={
+                    "detail": "The west terrace was dedicated on this date in 1998; tonight it catches the last light just as dinner begins.",
+                    "verification_needed": True,
+                    "source_targets": ["property_records", "sunset_table", "booking_notes"],
+                },
+            )
+
+        if label == "Celebration Discovery":
+            return AgentOutput(
+                agent=self.name,
+                title="The market anniversary",
+                summary="One true coincidence between the local design scene and the guest's celebration.",
+                data={
+                    "detail": "The design market opens its fortieth season today, and the first stall belongs to the textile house setting tonight's chef counter.",
+                    "verification_needed": True,
+                    "source_targets": ["market_archive", "chef_counter_notes", "local_calendar"],
+                },
+            )
+
         return AgentOutput(
             agent=self.name,
             title="The fig orchard",

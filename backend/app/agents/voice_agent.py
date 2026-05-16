@@ -11,13 +11,28 @@ class VoiceAgent(BaseAgent):
         intent: VisitIntent | None = None,
         context: dict | None = None,
     ) -> AgentOutput:
-        tone = "quiet, unhurried, slightly poetic" if intent and intent.label == "Quiet Restoration" else "warm, ceremonial, restrained"
+        label = intent.label if intent else "Quiet Restoration"
+        tone = "quiet, unhurried, slightly poetic"
+        rules = ["short sentences", "no instructions", "offers that step back"]
+
+        if label == "Milestone":
+            tone = "warm, ceremonial, restrained"
+            rules = ["acknowledge significance", "avoid sentimentality", "build toward evening"]
+        elif label == "Celebration Discovery":
+            tone = "bright, elegant, conspiratorial"
+            rules = ["one vivid invitation", "confident local specificity", "edited surprise"]
+
         return AgentOutput(
             agent=self.name,
             title="Editorial tone selected",
             summary=f"Letter voice is {tone}.",
             data={
                 "tone": tone,
-                "rules": ["short sentences", "no instructions", "offers that step back"],
+                "rules": rules,
+                "forbidden_phrases": [
+                    "we hope you enjoy your stay",
+                    "do not miss",
+                    "recommended for you",
+                ],
             },
         )

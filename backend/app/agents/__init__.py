@@ -3,6 +3,7 @@ from .compositor_agent import CompositorAgent
 from .crossword_agent import CrosswordAgent
 from .discovery_agent import DiscoveryAgent
 from .intent_agent import IntentAgent
+from .memory_agent import MemoryAgent
 from .resonance_agent import ResonanceAgent
 from .rhythm_agent import RhythmAgent
 from .voice_agent import VoiceAgent
@@ -14,6 +15,7 @@ __all__ = [
     "CrosswordAgent",
     "DiscoveryAgent",
     "IntentAgent",
+    "MemoryAgent",
     "ResonanceAgent",
     "RhythmAgent",
     "VoiceAgent",

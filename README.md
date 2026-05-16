@@ -35,12 +35,26 @@ FastAPI docs will be available at `http://localhost:8000/docs`.
 
 - `GET /health`
 - `GET /agents`
+- `GET /scenarios`
+- `POST /profiles`
+- `GET /profiles`
+- `GET /profiles/{profile_id}`
 - `POST /pipeline/run`
+
+`POST /pipeline/run` accepts either an inline `profile` or a stored `profile_id`.
+Stored customer profiles and personas are saved in SQLite at
+`backend/data/rosewood.sqlite` when the backend starts or profile APIs are used.
+
+The demo scenarios are:
+
+- `quiet-restoration`: solo, private, decision-light stay.
+- `milestone-couple`: first trip together in two years with an evening centerpiece.
+- `celebration-discovery`: birthday/discovery guest looking for hidden local access.
 
 ## Build Path
 
-1. Replace `frontend/src/data/rosewoodPipeline.js` with data from `POST /pipeline/run`.
+1. Replace the remaining static frontend fixture fields with data from `POST /pipeline/run`.
 2. Replace each backend stub in `backend/app/agents/` with real agent logic.
-3. Add persistence for guest profiles, ambient signals, and generated letters.
+3. Persist ambient signals and generated letter artifacts.
 4. Add Compositor output for LaTeX or print-ready PDF generation.
 5. Add Audio Agent output for script generation and voice synthesis.

@@ -28,6 +28,65 @@ export const defaultPipelineRequest = {
   ],
 };
 
+export const fallbackScenarios = [
+  {
+    id: "quiet-restoration",
+    title: "Quiet Restoration",
+    description: "Solo guest, late booking, private and decision-light.",
+    request: defaultPipelineRequest,
+  },
+  {
+    id: "milestone-couple",
+    title: "Milestone Couple",
+    description: "First trip together in two years, centered on the evening.",
+    request: {
+      profile: {
+        guest_name: "Mara and Julian Chen",
+        suite: "1203",
+        booking_notes: "first trip together in two years, private dinner preferred",
+        arrival_date: "2030-05-16",
+        stay_nights: 3,
+        occasion: "milestone",
+      },
+      ambient_signals: [
+        {
+          time: "20:12",
+          signal: "Private dining inquiry added before arrival.",
+        },
+        {
+          time: "21:04",
+          signal: "Guest asked concierge for a quiet place to mark the evening.",
+        },
+      ],
+    },
+  },
+  {
+    id: "celebration-discovery",
+    title: "Celebration / Discovery",
+    description: "Birthday guest who wants hidden local access.",
+    request: {
+      profile: {
+        guest_name: "Leila Hart",
+        suite: "617",
+        booking_notes: "birthday weekend, loves food, design, hidden local places",
+        arrival_date: "2030-05-16",
+        stay_nights: 2,
+        occasion: "celebration",
+      },
+      ambient_signals: [
+        {
+          time: "07:32",
+          signal: "QR scanned after breakfast and chef note opened.",
+        },
+        {
+          time: "09:15",
+          signal: "Guest saved the gallery recommendation.",
+        },
+      ],
+    },
+  },
+];
+
 export const memorySignals = [
   {
     time: "05:47",

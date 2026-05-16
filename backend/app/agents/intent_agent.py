@@ -8,6 +8,7 @@ class IntentAgent(BaseAgent):
     def infer(self, request: PipelineRequest) -> VisitIntent:
         notes = request.profile.booking_notes.lower()
         occasion = (request.profile.occasion or "").lower()
+        persona = request.profile.persona.segment.lower()
 
         if "anniversary" in notes or "first trip" in notes or "milestone" in occasion:
             return VisitIntent(
@@ -17,6 +18,21 @@ class IntentAgent(BaseAgent):
                 engagement_style="Warm ceremony, fewer choices, one evening centerpiece",
                 narrative_frame="The day should gather toward a moment worth keeping",
                 scent_profile="White flowers, warm wood, soft amber",
+            )
+
+        if (
+            "birthday" in notes
+            or "celebration" in occasion
+            or "hidden local" in notes
+            or "explorer" in persona
+        ):
+            return VisitIntent(
+                label="Celebration Discovery",
+                confidence=86,
+                emotional_state="Open, energized, hoping the hotel unlocks the place",
+                engagement_style="Edited surprises, confident local cues, one social invitation",
+                narrative_frame="The day should feel like the property quietly opened a door",
+                scent_profile="Neroli, fig leaf, chilled citrus, polished wood",
             )
 
         return VisitIntent(
