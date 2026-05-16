@@ -1693,13 +1693,38 @@ h4 {
   overflow: hidden;
   padding: clamp(1.4rem, 4vw, 3.5rem);
   background:
-    linear-gradient(115deg, rgba(255, 255, 255, 0.62), transparent 38%),
-    radial-gradient(circle at 82% 10%, color-mix(in srgb, var(--mood-accent) 18%, transparent), transparent 15rem),
-    linear-gradient(180deg, #fbf7ef, var(--paper));
+    url("data:image/svg+xml,%3Csvg width='520' height='620' viewBox='0 0 520 620' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%236f8f73' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round' opacity='0.28'%3E%3Cpath d='M418 592C332 483 313 384 333 297c19-84 73-153 116-237'/%3E%3Cpath d='M348 384c-54-35-106-45-156-30 19 39 71 58 156 30Z' fill='%236f8f73' fill-opacity='0.12'/%3E%3Cpath d='M361 330c-47-48-96-70-148-67 8 43 55 78 148 67Z' fill='%236f8f73' fill-opacity='0.1'/%3E%3Cpath d='M377 279c-28-58-66-93-116-107-7 42 31 87 116 107Z' fill='%236f8f73' fill-opacity='0.1'/%3E%3Cpath d='M394 230c-5-62-29-108-73-137-21 38 0 90 73 137Z' fill='%236f8f73' fill-opacity='0.09'/%3E%3Cpath d='M318 444c-61-16-114-8-158 25 31 30 87 29 158-25Z' fill='%236f8f73' fill-opacity='0.11'/%3E%3Cpath d='M413 176c25-52 61-85 110-98 2 41-36 79-110 98Z' fill='%236f8f73' fill-opacity='0.1'/%3E%3Cpath d='M390 244c39-47 83-72 132-75-7 40-50 70-132 75Z' fill='%236f8f73' fill-opacity='0.1'/%3E%3Cpath d='M364 321c49-35 98-48 147-39-16 37-64 55-147 39Z' fill='%236f8f73' fill-opacity='0.11'/%3E%3Cpath d='M342 411c55-22 104-23 149-2-24 32-75 34-149 2Z' fill='%236f8f73' fill-opacity='0.1'/%3E%3C/g%3E%3C/svg%3E"),
+    linear-gradient(90deg, rgba(26, 33, 29, 0.035), transparent 1.15rem, transparent calc(100% - 1.15rem), rgba(26, 33, 29, 0.026)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.68), transparent 28%),
+    repeating-linear-gradient(0deg, rgba(26, 33, 29, 0.018) 0 1px, transparent 1px 5px),
+    repeating-linear-gradient(104deg, rgba(194, 134, 106, 0.04) 0 1px, transparent 1px 14px),
+    linear-gradient(180deg, #fffaf1 0%, #f8f0e4 54%, #efe5d6 100%);
+  background-position:
+    right -8rem bottom -9rem,
+    center,
+    center,
+    center,
+    center,
+    center;
+  background-repeat:
+    no-repeat,
+    no-repeat,
+    no-repeat,
+    repeat,
+    repeat,
+    no-repeat;
+  background-size:
+    min(31rem, 46%) auto,
+    auto,
+    auto,
+    auto,
+    auto,
+    auto;
   color: var(--ink);
   box-shadow:
     0 2rem 6rem rgba(0, 0, 0, 0.36),
-    inset 0 0 0 0.45rem rgba(26, 33, 29, 0.035);
+    inset 0 0 0 0.45rem rgba(26, 33, 29, 0.035),
+    inset 0 0 5.5rem rgba(93, 69, 45, 0.11);
 }
 
 .letter-preview::before {
@@ -1707,19 +1732,25 @@ h4 {
   position: absolute;
   inset: 1rem;
   pointer-events: none;
-  border: 1px solid rgba(26, 33, 29, 0.1);
+  border: 1px solid rgba(26, 33, 29, 0.12);
+  background:
+    linear-gradient(90deg, rgba(26, 33, 29, 0.09), transparent 18%, transparent 82%, rgba(26, 33, 29, 0.055)),
+    linear-gradient(180deg, rgba(26, 33, 29, 0.05), transparent 12%, transparent 88%, rgba(26, 33, 29, 0.075));
+  mix-blend-mode: multiply;
 }
 
 .letter-preview::after {
-  content: "";
+  content: "R";
   position: absolute;
-  right: -4rem;
-  bottom: -5rem;
-  width: 17rem;
-  height: 17rem;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--mood-accent-2) 12%, transparent);
-  filter: blur(0.2rem);
+  right: clamp(0.8rem, 4vw, 3rem);
+  bottom: clamp(0.6rem, 4vw, 2.6rem);
+  pointer-events: none;
+  color: color-mix(in srgb, var(--mood-accent-2) 16%, transparent);
+  font-family: "Cormorant Garamond", serif;
+  font-size: clamp(13rem, 25vw, 25rem);
+  font-weight: 700;
+  line-height: 0.72;
+  opacity: 0.46;
 }
 
 .letter-head {
@@ -1734,12 +1765,20 @@ h4 {
 .letter-brand {
   display: grid;
   justify-items: center;
-  gap: 0.45rem;
+  gap: 0.35rem;
 }
 
-.letter-brand span {
+.rosewood-logo {
+  width: clamp(5.2rem, 9vw, 7.2rem);
+  height: auto;
+  margin-bottom: 0.2rem;
+  object-fit: contain;
+}
+
+.letter-brand strong {
   font-family: "Cormorant Garamond", serif;
-  font-size: clamp(1.55rem, 3vw, 2.2rem);
+  color: var(--ink);
+  font-size: clamp(1.2rem, 2vw, 1.7rem);
   font-weight: 700;
   letter-spacing: 0.22em;
 }

@@ -22,6 +22,7 @@ import {
   listRosewoodJobHistory,
   startRosewoodPipelineJobs,
 } from "./services/api.js";
+import rosewoodLondonLogo from "./rosewood_london_logo.png";
 
 const PIPELINE_STAGES = [
   { name: "Intent", agent: "Intent Agent" },
@@ -513,7 +514,6 @@ function CompletedJobDetail({ job, onJobUpdate }) {
             <div>
               <p className="eyebrow">ElevenLabs voice note</p>
               <strong>{response?.audio?.status ?? "script_ready"}</strong>
-              <p>"{cleanText(response?.audio_script ?? "")}"</p>
               {response?.audio?.audio_url ? (
                 <audio controls src={response.audio.audio_url}>
                   <track kind="captions" />
@@ -921,7 +921,8 @@ function GuestLetterPage({ error, job }) {
         <article className="letter-preview guest-facing">
           <header className="letter-head">
             <div className="letter-brand">
-              <span>ROSEWOOD</span>
+              <img className="rosewood-logo" src={rosewoodLondonLogo} alt="Rosewood London" />
+              <strong>ROSEWOOD</strong>
               <small>{letter?.date_line ?? "Morning letter"}</small>
             </div>
           </header>
@@ -954,7 +955,6 @@ function GuestLetterPage({ error, job }) {
               <p className="audio-missing">The written note is ready. The voice note has not been generated yet.</p>
             )}
           </section>
-          <p className="guest-script">"{cleanText(response?.audio_script ?? "")}"</p>
           <SuggestedLocationCard distanceHint={distanceHint} />
           <CrosswordAnswerKey crossword={crossword} />
         </aside>
