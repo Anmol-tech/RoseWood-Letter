@@ -350,6 +350,7 @@ function CompletedJobDetail({ job }) {
           <ArtifactCard icon={<Printer size={18} />} label="Print" value={response?.print_artifact.print_status} />
           <ArtifactCard icon={<Headphones size={18} />} label="Voice" value={response?.audio.voice} />
           <ArtifactCard icon={<QrCode size={18} />} label="QR" value={response?.print_artifact.qr_url} />
+          <CrosswordAnswerKey crossword={crossword} />
           <article className="artifact-card audio-card">
             <div>
               <p className="eyebrow">Audio script</p>
@@ -362,6 +363,27 @@ function CompletedJobDetail({ job }) {
         </aside>
       </div>
     </section>
+  );
+}
+
+function CrosswordAnswerKey({ crossword }) {
+  if (!crossword?.entries?.length) return null;
+
+  return (
+    <article className="artifact-card crossword-answer-card">
+      <FileText size={18} />
+      <div>
+        <p className="eyebrow">Crossword answer key</p>
+        <ul>
+          {crossword.entries.map((entry) => (
+            <li key={`${entry.number}-${entry.answer}`}>
+              <span>{entry.number} {entry.direction}</span>
+              <strong>{entry.answer}</strong>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </article>
   );
 }
 

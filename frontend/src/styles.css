@@ -604,6 +604,41 @@ h4 {
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
+.crossword-answer-card ul {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0.2rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.crossword-answer-card li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid var(--line);
+}
+
+.crossword-answer-card li:first-child {
+  border-top: 0;
+}
+
+.crossword-answer-card span {
+  color: var(--steel);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.crossword-answer-card strong {
+  color: var(--paper);
+  font-family: "Cormorant Garamond", serif;
+  font-size: 1.18rem;
+  letter-spacing: 0.04em;
+}
+
 .audio-card button {
   display: grid;
   width: 2.4rem;
