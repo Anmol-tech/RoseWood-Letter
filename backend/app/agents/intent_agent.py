@@ -1,5 +1,6 @@
 from app.agents.base import BaseAgent
 from app.schemas import AgentOutput, PipelineRequest, VisitIntent
+from app.services import anthropic_client
 
 
 class IntentAgent(BaseAgent):
@@ -51,6 +52,36 @@ class IntentAgent(BaseAgent):
         context: dict | None = None,
     ) -> AgentOutput:
         inferred = self.infer(request)
+        return AgentOutput(
+            agent=self.name,
+            title=inferred.label,
+            summary=inferred.narrative_frame,
+            data=inferred.model_dump(),
+        )
+
+    async def arun(
+        self,
+        request: PipelineRequest,
+        intent: VisitIntent | None = None,
+        context: dict | None = None,
+    ) -> AgentOutput:
+        fallback = self.infer(request).model_dump()
+        data = await anthropic_client.complete_json(
+            system=(
+                "You are the Rosewood Letter Intent Agent. Infer why a luxury hotel "
+                "guest is here. Return only JSON matching: label, confidence, "
+                "emotional_state, engagement_style, narrative_frame, scent_profile."
+            ),
+            prompt=(
+                f"Guest profile: {request.profile.model_dump()}\n"
+                f"Ambient signals: {[signal.model_dump() for signal in request.ambient_signals]}\n"
+                "Classify as Quiet Restoration, Milestone, or Celebration Discovery unless "
+                "the data clearly demands another concise label."
+            ),
+            fallback=fallback,
+            max_tokens=700,
+        )
+        inferred = VisitIntent(**data)
         return AgentOutput(
             agent=self.name,
             title=inferred.label,

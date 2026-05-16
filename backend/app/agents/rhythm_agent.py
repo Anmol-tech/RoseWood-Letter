@@ -53,3 +53,26 @@ class RhythmAgent(BaseAgent):
                 "emotional_shape": summary,
             },
         )
+
+    async def arun(
+        self,
+        request: PipelineRequest,
+        intent: VisitIntent | None = None,
+        context: dict | None = None,
+    ) -> AgentOutput:
+        fallback = self.run(request, intent, context)
+        data = await self.complete_data(
+            system=(
+                "You are the Rosewood Letter Rhythm Agent. Design the emotional arc "
+                "of one hotel day, not a schedule. Return only JSON with morning, "
+                "afternoon, evening, emotional_shape."
+            ),
+            prompt=f"Intent: {intent.model_dump() if intent else {}}\nGuest: {request.profile.model_dump()}",
+            fallback=fallback.data,
+        )
+        return AgentOutput(
+            agent=self.name,
+            title=fallback.title,
+            summary=data.get("emotional_shape", fallback.summary),
+            data=data,
+        )

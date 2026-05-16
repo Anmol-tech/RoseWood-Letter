@@ -31,6 +31,17 @@ uvicorn app.main:app --reload --port 8000
 
 FastAPI docs will be available at `http://localhost:8000/docs`.
 
+Provider-backed agents are enabled with environment variables:
+
+```bash
+cp .env.example .env
+export ANTHROPIC_API_KEY="..."
+export ELEVENLABS_API_KEY="..."
+export ELEVENLABS_DEFAULT_VOICE_ID="..."
+```
+
+Without keys, the backend uses deterministic demo fallbacks.
+
 ## Backend Endpoints
 
 - `GET /health`

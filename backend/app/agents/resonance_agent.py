@@ -47,3 +47,27 @@ class ResonanceAgent(BaseAgent):
                 "source_targets": ["property_records", "agricultural_calendar", "guest_profile"],
             },
         )
+
+    async def arun(
+        self,
+        request: PipelineRequest,
+        intent: VisitIntent | None = None,
+        context: dict | None = None,
+    ) -> AgentOutput:
+        fallback = self.run(request, intent, context)
+        data = await self.complete_data(
+            system=(
+                "You are the Rosewood Letter Temporal Resonance Layer. Surface one "
+                "quietly uncanny but plausible connection across date, land, property, "
+                "and guest context. Do not fabricate claims as verified. Return only "
+                "JSON with detail, verification_needed, source_targets."
+            ),
+            prompt=f"Intent: {intent.model_dump() if intent else {}}\nGuest: {request.profile.model_dump()}",
+            fallback=fallback.data,
+        )
+        return AgentOutput(
+            agent=self.name,
+            title=fallback.title,
+            summary=fallback.summary,
+            data=data,
+        )

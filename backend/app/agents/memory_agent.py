@@ -36,3 +36,29 @@ class MemoryAgent(BaseAgent):
                 "next_letter_adjustment": adjustment,
             },
         )
+
+    async def arun(
+        self,
+        request: PipelineRequest,
+        intent: VisitIntent | None = None,
+        context: dict | None = None,
+    ) -> AgentOutput:
+        fallback = self.run(request, intent, context)
+        data = await self.complete_data(
+            system=(
+                "You are the Rosewood Letter Memory Agent. Interpret low-surveillance "
+                "ambient signals and decide how tomorrow's letter should adapt. "
+                "Return only JSON with signals, inferred_pattern, next_letter_adjustment."
+            ),
+            prompt=(
+                f"Intent: {intent.model_dump() if intent else {}}\n"
+                f"Signals: {[signal.model_dump() for signal in request.ambient_signals]}"
+            ),
+            fallback=fallback.data,
+        )
+        return AgentOutput(
+            agent=self.name,
+            title=fallback.title,
+            summary=data.get("inferred_pattern", fallback.summary),
+            data=data,
+        )

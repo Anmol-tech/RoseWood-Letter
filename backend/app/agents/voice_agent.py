@@ -36,3 +36,26 @@ class VoiceAgent(BaseAgent):
                 ],
             },
         )
+
+    async def arun(
+        self,
+        request: PipelineRequest,
+        intent: VisitIntent | None = None,
+        context: dict | None = None,
+    ) -> AgentOutput:
+        fallback = self.run(request, intent, context)
+        data = await self.complete_data(
+            system=(
+                "You are the Rosewood Letter Editorial / Voice Agent. Calibrate the "
+                "editorial tone for the final letter from the upstream agent outputs. "
+                "Return only JSON with tone, rules, forbidden_phrases."
+            ),
+            prompt=f"Intent: {intent.model_dump() if intent else {}}\nContext: {context or {}}",
+            fallback=fallback.data,
+        )
+        return AgentOutput(
+            agent=self.name,
+            title=fallback.title,
+            summary=f"Letter voice is {data.get('tone', fallback.data['tone'])}.",
+            data=data,
+        )

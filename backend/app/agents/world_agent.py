@@ -62,3 +62,26 @@ class WorldAgent(BaseAgent):
                 ],
             },
         )
+
+    async def arun(
+        self,
+        request: PipelineRequest,
+        intent: VisitIntent | None = None,
+        context: dict | None = None,
+    ) -> AgentOutput:
+        fallback = self.run(request, intent, context)
+        data = await self.complete_data(
+            system=(
+                "You are the Rosewood Letter World Agent. Filter weather, property, "
+                "food, and local facts through the visit intent. Return only JSON "
+                "with weather_frame, property_detail, chef_note, local_conditions."
+            ),
+            prompt=f"Intent: {intent.model_dump() if intent else {}}\nGuest: {request.profile.model_dump()}",
+            fallback=fallback.data,
+        )
+        return AgentOutput(
+            agent=self.name,
+            title=fallback.title,
+            summary="World details filtered through the visit intent.",
+            data=data,
+        )

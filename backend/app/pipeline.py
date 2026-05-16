@@ -1,3 +1,5 @@
+import asyncio
+
 from app.agents import (
     AudioAgent,
     CompositorAgent,
@@ -24,6 +26,7 @@ from app.schemas import (
     PrintArtifact,
     RhythmArc,
     TemporalResonance,
+    VisitIntent,
     WorldContext,
 )
 
@@ -31,29 +34,62 @@ from app.schemas import (
 class RosewoodPipeline:
     def __init__(self) -> None:
         self.intent_agent = IntentAgent()
-        self.agents = [
+        self.parallel_agents = [
             WorldAgent(),
             RhythmAgent(),
             DiscoveryAgent(),
             MemoryAgent(),
             ResonanceAgent(),
-            VoiceAgent(),
+        ]
+        self.voice_agent = VoiceAgent()
+        self.artifact_agents = [
             CrosswordAgent(),
             CompositorAgent(),
             AudioAgent(),
         ]
+        self.agents = [
+            *self.parallel_agents,
+            VoiceAgent(),
+            *self.artifact_agents,
+        ]
 
     def run(self, request: PipelineRequest) -> PipelineResponse:
-        intent_output = self.intent_agent.run(request)
-        visit_intent = self.intent_agent.infer(request)
+        return asyncio.run(self.arun(request))
+
+    async def arun(self, request: PipelineRequest) -> PipelineResponse:
+        intent_output = await self.intent_agent.arun(request)
+        visit_intent = VisitIntent(**intent_output.data)
 
         outputs: list[AgentOutput] = [intent_output]
         context = {"intent": visit_intent.model_dump()}
 
-        for agent in self.agents:
-            output = agent.run(request=request, intent=visit_intent, context=context)
+        parallel_outputs = await asyncio.gather(
+            *[
+                agent.arun(request=request, intent=visit_intent, context=context.copy())
+                for agent in self.parallel_agents
+            ]
+        )
+        for output in parallel_outputs:
             outputs.append(output)
-            context[agent.name] = output.model_dump()
+            context[output.agent] = output.model_dump()
+
+        voice_output_agent = await self.voice_agent.arun(
+            request=request,
+            intent=visit_intent,
+            context=context,
+        )
+        outputs.append(voice_output_agent)
+        context[self.voice_agent.name] = voice_output_agent.model_dump()
+
+        artifact_outputs = await asyncio.gather(
+            *[
+                agent.arun(request=request, intent=visit_intent, context=context.copy())
+                for agent in self.artifact_agents
+            ]
+        )
+        for output in artifact_outputs:
+            outputs.append(output)
+            context[output.agent] = output.model_dump()
 
         world_output = context["World Agent"]["data"]
         rhythm_output = context["Rhythm Agent"]["data"]

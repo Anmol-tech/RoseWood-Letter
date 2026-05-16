@@ -23,3 +23,26 @@ class CrosswordAgent(BaseAgent):
                 ]
             },
         )
+
+    async def arun(
+        self,
+        request: PipelineRequest,
+        intent: VisitIntent | None = None,
+        context: dict | None = None,
+    ) -> AgentOutput:
+        fallback = self.run(request, intent, context)
+        data = await self.complete_data(
+            system=(
+                "You are the Rosewood Letter Crossword Agent. Create a small elegant "
+                "crossword clue set where answers hide the day's recommendations. "
+                "Return only JSON with clues, where clues is a list of clue/answer objects."
+            ),
+            prompt=f"Intent: {intent.model_dump() if intent else {}}\nContext: {context or {}}",
+            fallback=fallback.data,
+        )
+        return AgentOutput(
+            agent=self.name,
+            title=fallback.title,
+            summary=fallback.summary,
+            data=data,
+        )

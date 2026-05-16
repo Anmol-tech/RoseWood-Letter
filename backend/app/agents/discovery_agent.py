@@ -47,3 +47,26 @@ class DiscoveryAgent(BaseAgent):
                 "guest_fit": intent.label if intent else "Unknown",
             },
         )
+
+    async def arun(
+        self,
+        request: PipelineRequest,
+        intent: VisitIntent | None = None,
+        context: dict | None = None,
+    ) -> AgentOutput:
+        fallback = self.run(request, intent, context)
+        data = await self.complete_data(
+            system=(
+                "You are the Rosewood Letter Discovery Agent. Find exactly one "
+                "non-obvious local recommendation that fits the visit intent. "
+                "Return only JSON with recommendation, reason, guest_fit."
+            ),
+            prompt=f"Intent: {intent.model_dump() if intent else {}}\nGuest: {request.profile.model_dump()}",
+            fallback=fallback.data,
+        )
+        return AgentOutput(
+            agent=self.name,
+            title=fallback.title,
+            summary="One local discovery selected for this guest.",
+            data=data,
+        )

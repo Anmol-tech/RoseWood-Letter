@@ -1,7 +1,9 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.db import create_guest_profile, get_guest_profile, init_db, list_guest_profiles
 from app.pipeline import pipeline
@@ -37,6 +39,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 @app.get("/health")
@@ -87,11 +92,11 @@ def profile(profile_id: int) -> GuestProfileRecord:
 
 
 @app.post("/pipeline/run", response_model=PipelineResponse)
-def run_pipeline(request: PipelineRequest) -> PipelineResponse:
+async def run_pipeline(request: PipelineRequest) -> PipelineResponse:
     if request.profile_id is not None:
         stored_profile = get_guest_profile(request.profile_id)
         if stored_profile is None:
             raise HTTPException(status_code=404, detail="Profile not found")
         request.profile = stored_profile
 
-    return pipeline.run(request)
+    return await pipeline.arun(request)
