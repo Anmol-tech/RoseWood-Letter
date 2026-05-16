@@ -33,8 +33,10 @@ export ELEVENLABS_VOICE_ID_MILESTONE="..."
 export ELEVENLABS_VOICE_ID_CELEBRATION_DISCOVERY="..."
 ```
 
-Generated voice notes are saved under `app/static/audio/` and served from
+Voice notes are saved under `app/static/audio/` and served from
 `/static/audio/{file}.mp3`.
+Letters are saved under `../generated_letters/` as Markdown and HTML whenever
+the pipeline runs.
 
 ## Endpoints
 

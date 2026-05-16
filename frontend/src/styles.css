@@ -12,6 +12,10 @@
   --copper: #c2866a;
   --plum: #2a1824;
   --steel: #9fb7c0;
+  --mood-glow: rgba(168, 184, 170, 0.16);
+  --mood-wash: rgba(12, 43, 34, 0.66);
+  --mood-accent: #d8c79d;
+  --mood-accent-2: #9fb7c0;
   --line: rgba(255, 255, 255, 0.12);
   --muted: rgba(255, 255, 255, 0.64);
   --white: #ffffff;
@@ -30,7 +34,8 @@ body {
   min-height: 100vh;
   margin: 0;
   background:
-    linear-gradient(90deg, rgba(42, 24, 36, 0.55), transparent 28rem),
+    radial-gradient(circle at 78% 4%, var(--mood-glow), transparent 28rem),
+    linear-gradient(90deg, rgba(42, 24, 36, 0.34), transparent 28rem),
     linear-gradient(135deg, var(--green-950), #101615 46%, #080b0d);
   color: var(--white);
 }
@@ -51,6 +56,27 @@ button:disabled {
   min-height: 100vh;
 }
 
+.app-shell.mood-restoration {
+  --mood-glow: rgba(166, 184, 171, 0.18);
+  --mood-wash: rgba(12, 43, 34, 0.74);
+  --mood-accent: #d8c79d;
+  --mood-accent-2: #9fb7c0;
+}
+
+.app-shell.mood-milestone {
+  --mood-glow: rgba(194, 134, 106, 0.2);
+  --mood-wash: rgba(42, 24, 36, 0.74);
+  --mood-accent: #e6c889;
+  --mood-accent-2: #c2866a;
+}
+
+.app-shell.mood-celebration {
+  --mood-glow: rgba(114, 178, 164, 0.18);
+  --mood-wash: rgba(18, 45, 48, 0.76);
+  --mood-accent: #e0c46d;
+  --mood-accent-2: #72b2a4;
+}
+
 .sidebar {
   position: sticky;
   top: 0;
@@ -60,7 +86,9 @@ button:disabled {
   height: 100vh;
   padding: 1.5rem;
   border-right: 1px solid var(--line);
-  background: rgba(7, 12, 13, 0.92);
+  background:
+    linear-gradient(180deg, var(--mood-wash), rgba(7, 12, 13, 0.94)),
+    rgba(7, 12, 13, 0.92);
   backdrop-filter: blur(16px);
 }
 
@@ -75,9 +103,9 @@ button:disabled {
   width: 3rem;
   height: 3rem;
   place-items: center;
-  border: 1px solid rgba(216, 199, 157, 0.54);
+  border: 1px solid color-mix(in srgb, var(--mood-accent) 58%, transparent);
   border-radius: 50%;
-  color: var(--gold);
+  color: var(--mood-accent);
   font-family: "Cormorant Garamond", serif;
   font-size: 1.7rem;
   font-weight: 700;
@@ -147,7 +175,7 @@ h4 {
 
 .nav-item:hover,
 .nav-item.active {
-  background: rgba(194, 134, 106, 0.12);
+  background: color-mix(in srgb, var(--mood-accent-2) 14%, transparent);
   color: var(--white);
 }
 
@@ -195,7 +223,8 @@ h4 {
   gap: 1rem;
   min-height: 5.5rem;
   padding: 1rem 1.25rem;
-  background: rgba(10, 15, 15, 0.78);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--mood-wash) 72%, transparent), rgba(10, 15, 15, 0.78));
 }
 
 .topbar h2 {
@@ -234,7 +263,8 @@ h4 {
   min-height: 18rem;
   overflow: hidden;
   background:
-    linear-gradient(rgba(7, 12, 13, 0.22), rgba(7, 12, 13, 0.86)),
+    linear-gradient(rgba(7, 12, 13, 0.18), rgba(7, 12, 13, 0.88)),
+    linear-gradient(90deg, var(--mood-wash), transparent 70%),
     url("https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1800&q=85") center/cover;
 }
 
@@ -330,8 +360,8 @@ h4 {
 
 .scenario-tab:hover,
 .scenario-tab.active {
-  border-color: rgba(194, 134, 106, 0.72);
-  background: rgba(194, 134, 106, 0.12);
+  border-color: color-mix(in srgb, var(--mood-accent-2) 72%, transparent);
+  background: color-mix(in srgb, var(--mood-accent-2) 12%, transparent);
 }
 
 .scenario-tab strong {
@@ -406,8 +436,8 @@ h4 {
 .confidence,
 .soft-tag {
   padding: 0.45rem 0.65rem;
-  background: rgba(194, 134, 106, 0.14);
-  color: #f0b49a;
+  background: color-mix(in srgb, var(--mood-accent-2) 16%, transparent);
+  color: var(--mood-accent);
   font-size: 0.82rem;
   font-weight: 700;
 }
@@ -500,8 +530,8 @@ h4 {
 }
 
 .agent-node.active {
-  border-color: rgba(194, 134, 106, 0.84);
-  background: rgba(194, 134, 106, 0.12);
+  border-color: color-mix(in srgb, var(--mood-accent-2) 84%, transparent);
+  background: color-mix(in srgb, var(--mood-accent-2) 13%, transparent);
   transform: translateY(-0.18rem);
 }
 
@@ -511,7 +541,7 @@ h4 {
 }
 
 .node-index {
-  color: var(--copper);
+  color: var(--mood-accent);
   font-size: 0.78rem;
   font-weight: 800;
 }
@@ -538,50 +568,99 @@ h4 {
   min-height: 42rem;
   position: sticky;
   top: 1rem;
-  padding: clamp(1.25rem, 4vw, 3rem);
-  background: var(--paper);
+  overflow: hidden;
+  padding: clamp(1.4rem, 4vw, 3.5rem);
+  background:
+    linear-gradient(115deg, rgba(255, 255, 255, 0.62), transparent 38%),
+    radial-gradient(circle at 82% 10%, color-mix(in srgb, var(--mood-accent) 18%, transparent), transparent 15rem),
+    linear-gradient(180deg, #fbf7ef, var(--paper));
   color: var(--ink);
   box-shadow:
     0 2rem 6rem rgba(0, 0, 0, 0.36),
     inset 0 0 0 0.45rem rgba(26, 33, 29, 0.035);
 }
 
+.letter-preview::before {
+  content: "";
+  position: absolute;
+  inset: 1rem;
+  pointer-events: none;
+  border: 1px solid rgba(26, 33, 29, 0.1);
+}
+
+.letter-preview::after {
+  content: "";
+  position: absolute;
+  right: -4rem;
+  bottom: -5rem;
+  width: 17rem;
+  height: 17rem;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--mood-accent-2) 12%, transparent);
+  filter: blur(0.2rem);
+}
+
 .letter-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding-bottom: 1.25rem;
-  border-bottom: 1px solid rgba(26, 33, 29, 0.22);
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  padding: 0.45rem 0 1.65rem;
+  border-bottom: 1px solid rgba(26, 33, 29, 0.18);
 }
 
-.letter-head span {
+.letter-brand {
+  display: grid;
+  justify-items: center;
+  gap: 0.45rem;
+}
+
+.letter-brand span {
   font-family: "Cormorant Garamond", serif;
-  font-size: 1.55rem;
+  font-size: clamp(1.55rem, 3vw, 2.2rem);
   font-weight: 700;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.22em;
 }
 
-.letter-head p,
+.letter-brand small,
 .letter-foot span {
   margin: 0;
   color: rgba(26, 33, 29, 0.62);
-  font-size: 0.82rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .letter-body {
-  max-width: 38rem;
-  padding: 2rem 0;
+  position: relative;
+  z-index: 1;
+  max-width: 41rem;
+  padding: 2.45rem 0 0.75rem;
   font-family: "Cormorant Garamond", serif;
-  font-size: 1.42rem;
-  line-height: 1.62;
+  font-size: clamp(1.26rem, 1.7vw, 1.58rem);
+  line-height: 1.68;
 }
 
 .letter-body .salutation {
+  margin-bottom: 1.15rem;
   font-weight: 700;
 }
 
+.letter-body p:not(.salutation) {
+  margin-bottom: 1.18rem;
+}
+
+.letter-body p:nth-of-type(2)::first-letter {
+  float: left;
+  padding: 0.15rem 0.42rem 0 0;
+  color: color-mix(in srgb, var(--mood-accent-2) 72%, var(--ink));
+  font-size: 4.7rem;
+  line-height: 0.84;
+}
+
 .letter-foot {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 0.85rem;

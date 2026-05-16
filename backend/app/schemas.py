@@ -133,7 +133,9 @@ class LetterArtifact(BaseModel):
     paragraphs: list[str]
     qr_caption: str
     html: str = ""
-    pdf_status: str = "not_generated"
+    pdf_status: str = "pending"
+    markdown_path: str | None = None
+    html_path: str | None = None
 
 
 class AudioArtifact(BaseModel):

@@ -1,4 +1,7 @@
 import asyncio
+import re
+from datetime import datetime
+from pathlib import Path
 
 from app.agents import (
     AudioAgent,
@@ -101,30 +104,33 @@ class RosewoodPipeline:
         compositor_output = context["Compositor Agent"]["data"]
         audio_output = context["Audio Agent"]["data"]
 
+        letter_paragraphs = self._compose_letter_paragraphs(
+            request=request,
+            intent=visit_intent,
+            world_output=world_output,
+            rhythm_output=rhythm_output,
+            discovery_output=discovery_output,
+            memory_output=memory_output,
+            resonance_output=resonance_output,
+        )
+
         letter = LetterArtifact(
             date_line="Morning letter · May 17, 2030",
             salutation=f"Good morning, {request.profile.guest_name}.",
-            paragraphs=[
-                world_output["weather_frame"],
-                rhythm_output["morning"],
-                resonance_output["detail"],
-                discovery_output["recommendation"],
-            ],
+            paragraphs=letter_paragraphs,
             qr_caption="A personal note from Rosewood.",
             html=self._compose_letter_html(
                 guest_name=request.profile.guest_name,
-                paragraphs=[
-                    world_output["weather_frame"],
-                    rhythm_output["morning"],
-                    resonance_output["detail"],
-                    discovery_output["recommendation"],
-                ],
+                paragraphs=letter_paragraphs,
             ),
             pdf_status="html_ready",
         )
+        saved_paths = self._save_letter(request=request, intent=visit_intent, letter=letter)
+        letter.markdown_path = saved_paths["markdown_path"]
+        letter.html_path = saved_paths["html_path"]
 
         audio = AudioArtifact(
-            script=audio_output.get("script", ""),
+            script=self._clean_prose(audio_output.get("script", "")),
             voice=audio_output.get("voice", "soft and slow"),
             audio_url=audio_output.get("audio_url"),
             status=audio_output.get("status", "script_ready"),
@@ -190,8 +196,113 @@ class RosewoodPipeline:
             print_status=print_artifact.print_status,
         )
 
+    def _compose_letter_paragraphs(
+        self,
+        *,
+        request: PipelineRequest,
+        intent: VisitIntent,
+        world_output: dict,
+        rhythm_output: dict,
+        discovery_output: dict,
+        memory_output: dict,
+        resonance_output: dict,
+    ) -> list[str]:
+        label = intent.label
+
+        if label == "Milestone":
+            paragraphs = [
+                (
+                    f"Good light is waiting. {world_output['weather_frame']}"
+                ),
+                (
+                    "Let the day stay unannounced until evening. "
+                    f"{resonance_output['detail']}"
+                ),
+                (
+                    f"{discovery_output['recommendation']} "
+                    "It is held quietly, only if the day wants a secret."
+                ),
+            ]
+        elif label == "Celebration Discovery":
+            paragraphs = [
+                (
+                    f"The town is brightening early. {world_output['weather_frame']}"
+                ),
+                (
+                    f"{resonance_output['detail']} "
+                    "We liked the precision of that."
+                ),
+                (
+                    f"{discovery_output['recommendation']} "
+                    "The door looks ordinary until it opens."
+                ),
+            ]
+        else:
+            paragraphs = [
+                (
+                    "The fog came in while the hotel was quiet. The hills are still half withheld."
+                ),
+                (
+                    "We have left the first hours open. "
+                    "Coffee can arrive without conversation."
+                ),
+                (
+                    f"{resonance_output['detail']} "
+                    f"{discovery_output['recommendation']} No need to decide now."
+                ),
+            ]
+
+        return [self._clean_prose(paragraph) for paragraph in paragraphs]
+
+    def _clean_prose(self, text: str) -> str:
+        return text.replace("\u2014", ", ").replace("\u2013", "-")
+
+    def _save_letter(
+        self,
+        *,
+        request: PipelineRequest,
+        intent: VisitIntent,
+        letter: LetterArtifact,
+    ) -> dict[str, str]:
+        output_dir = Path(__file__).resolve().parents[2] / "generated_letters"
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        guest_slug = self._slugify(request.profile.guest_name)
+        suite_slug = self._slugify(request.profile.suite)
+        stem = f"{timestamp}-suite-{suite_slug}-{guest_slug}"
+
+        markdown_path = output_dir / f"{stem}.md"
+        html_path = output_dir / f"{stem}.html"
+
+        markdown_path.write_text(
+            self._compose_letter_markdown(intent=intent, letter=letter),
+            encoding="utf-8",
+        )
+        html_path.write_text(letter.html, encoding="utf-8")
+
+        return {
+            "markdown_path": str(markdown_path.relative_to(Path(__file__).resolve().parents[2])),
+            "html_path": str(html_path.relative_to(Path(__file__).resolve().parents[2])),
+        }
+
+    def _compose_letter_markdown(self, *, intent: VisitIntent, letter: LetterArtifact) -> str:
+        paragraphs = "\n\n".join(letter.paragraphs)
+        return (
+            "# ROSEWOOD\n\n"
+            f"{letter.date_line}\n\n"
+            f"Intent: {intent.label}\n\n"
+            f"{letter.salutation}\n\n"
+            f"{paragraphs}\n\n"
+            f"{letter.qr_caption}\n"
+        )
+
+    def _slugify(self, value: str) -> str:
+        slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
+        return slug or "guest"
+
     def _compose_letter_html(self, guest_name: str, paragraphs: list[str]) -> str:
-        body = "".join(f"<p>{paragraph}</p>" for paragraph in paragraphs)
+        body = "".join(f"<p>{self._clean_prose(paragraph)}</p>" for paragraph in paragraphs)
         return (
             "<article class=\"rosewood-letter\">"
             "<header><strong>ROSEWOOD</strong><span>Morning letter</span></header>"

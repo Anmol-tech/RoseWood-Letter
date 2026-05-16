@@ -56,6 +56,8 @@ Without keys, the backend uses deterministic demo fallbacks.
 `POST /pipeline/run` accepts either an inline `profile` or a stored `profile_id`.
 Stored customer profiles and personas are saved in SQLite at
 `backend/data/rosewood.sqlite` when the backend starts or profile APIs are used.
+Composed letters are saved in `generated_letters/` as Markdown and HTML each time
+the pipeline runs.
 
 The demo scenarios are:
 
@@ -67,6 +69,6 @@ The demo scenarios are:
 
 1. Replace the remaining static frontend fixture fields with data from `POST /pipeline/run`.
 2. Replace each backend stub in `backend/app/agents/` with real agent logic.
-3. Persist ambient signals and generated letter artifacts.
+3. Persist ambient signals and add browsing/search for saved letter artifacts.
 4. Add Compositor output for LaTeX or print-ready PDF generation.
 5. Add Audio Agent output for script generation and voice synthesis.

@@ -143,7 +143,7 @@ export const pipelineStages = [
     name: "Crossword",
     agent: "Crossword Agent",
     summary: "Turns recommendations into a small solvable itinerary.",
-    statusText: "Crossword generated",
+    statusText: "Crossword ready",
   },
   {
     name: "Compositor",
@@ -154,10 +154,9 @@ export const pipelineStages = [
 ];
 
 export const letterParagraphs = [
-  "The fog came in overnight. It is thicker than yesterday, and quieter. The eastern trail will hold its cool until nearly eleven.",
-  "We have left the first part of the day mostly untouched. Coffee can arrive without conversation. The garden path is dry enough for soft shoes.",
-  "One small thing worth knowing: the fig orchard beyond the lower lawn was planted in the same year you first came to California. The fruit is just beginning this week.",
-  "If the afternoon asks for a destination, Mara Kito opens her ceramics studio at two. She fires with clay from the same ridge you can see from your window.",
+  "The fog came in while the hotel was quiet. The hills are still half withheld.",
+  "We have left the first hours open. Coffee can arrive without conversation.",
+  "The fig orchard is beginning this week. Mara Kito opens her studio at two. No need to decide now.",
 ];
 
 export const audioScript =

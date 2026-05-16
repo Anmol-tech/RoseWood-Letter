@@ -63,6 +63,18 @@ function mapMemorySignals(response, request) {
   return memorySignals;
 }
 
+function getMoodClass(label = "") {
+  const normalized = label.toLowerCase();
+
+  if (normalized.includes("milestone")) return "mood-milestone";
+  if (normalized.includes("celebration")) return "mood-celebration";
+  return "mood-restoration";
+}
+
+function cleanText(text = "") {
+  return text.replace(/\u2014/g, ", ").replace(/\u2013/g, "-");
+}
+
 function Sidebar() {
   return (
     <aside className="sidebar" aria-label="Rosewood Letter operations">
@@ -281,17 +293,20 @@ function PipelinePanel({ stages, onRun, runState }) {
   );
 }
 
-function LetterPreview({ letter }) {
-  const paragraphs = letter?.paragraphs ?? letterParagraphs;
+function LetterPreview({ letter, intent }) {
+  const paragraphs = (letter?.paragraphs ?? letterParagraphs).map(cleanText);
+  const moodClass = getMoodClass(intent?.label);
 
   return (
-    <article className="letter-preview" id="letter" aria-label="Printed letter preview">
+    <article className={`letter-preview ${moodClass}`} id="letter" aria-label="Printed letter preview">
       <header className="letter-head">
-        <span>ROSEWOOD</span>
-        <p>{letter?.date_line ?? "Morning letter · May 17, 2030"}</p>
+        <div className="letter-brand">
+          <span>ROSEWOOD</span>
+          <small>{letter?.date_line ?? "Morning letter · May 17, 2030"}</small>
+        </div>
       </header>
       <div className="letter-body">
-        <p className="salutation">{letter?.salutation ?? "Good morning,"}</p>
+        <p className="salutation">{cleanText(letter?.salutation ?? "Good morning,")}</p>
         {paragraphs.map((paragraph) => (
           <p key={paragraph}>{paragraph}</p>
         ))}
@@ -304,12 +319,12 @@ function LetterPreview({ letter }) {
   );
 }
 
-function ArtifactSpec({ printArtifact, letter }) {
+function ArtifactSpec({ printArtifact }) {
   const specs = [
-    ["Format", letter?.pdf_status ?? "html ready"],
+    ["Paper", "scented cotton stock"],
     ["Scent", printArtifact?.paper_scent ?? visitIntent.scentProfile],
-    ["QR", printArtifact?.qr_url ?? "pending voice note"],
-    ["Status", printArtifact?.print_status ?? "ready for composition"],
+    ["Voice QR", printArtifact?.qr_url ?? "private note pending"],
+    ["Handoff", printArtifact?.delivery_window ?? "06:00"],
   ];
 
   return (
@@ -343,7 +358,7 @@ function AudioPanel({ audio, script }) {
         </div>
         <span className="soft-tag">{audio?.voice ?? "soft · slow"}</span>
       </div>
-      <p className="script">"{script}"</p>
+      <p className="script">"{cleanText(script)}"</p>
       <div className="audio-bar">
         <button type="button" aria-label="Play audio preview">
           <Play size={17} fill="currentColor" />
@@ -435,6 +450,7 @@ export default function App() {
   const stages = mapStages(pipelineResponse?.outputs);
   const signals = mapMemorySignals(pipelineResponse, selectedRequest);
   const currentAudioScript = pipelineResponse?.audio_script ?? audioScript;
+  const moodClass = getMoodClass(intent.label);
 
   function selectScenario(scenarioId) {
     setSelectedScenarioId(scenarioId);
@@ -458,7 +474,7 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${moodClass}`}>
       <Sidebar />
       <main className="workspace">
         <Topbar profile={profile} runState={runState} />
@@ -484,9 +500,9 @@ export default function App() {
         {runError ? <p className="api-error">Backend unavailable: {runError}</p> : null}
 
         <section className="studio-grid">
-          <LetterPreview letter={pipelineResponse?.letter} />
+          <LetterPreview letter={pipelineResponse?.letter} intent={intent} />
           <div className="right-stack">
-            <ArtifactSpec letter={pipelineResponse?.letter} printArtifact={pipelineResponse?.print_artifact} />
+            <ArtifactSpec printArtifact={pipelineResponse?.print_artifact} />
             <AudioPanel audio={pipelineResponse?.audio} script={currentAudioScript} />
             <CrosswordPanel crossword={pipelineResponse?.crossword} />
             <QRPanel printArtifact={pipelineResponse?.print_artifact} />

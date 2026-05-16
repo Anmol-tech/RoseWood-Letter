@@ -34,8 +34,9 @@ class BaseAgent(ABC):
         fallback: dict[str, Any],
         max_tokens: int = 900,
     ) -> dict[str, Any]:
+        style_guard = " Never use em dashes. Prefer commas, periods, or simple hyphens."
         return await anthropic_client.complete_json(
-            system=system,
+            system=f"{system}{style_guard}",
             prompt=prompt,
             fallback=fallback,
             max_tokens=max_tokens,
