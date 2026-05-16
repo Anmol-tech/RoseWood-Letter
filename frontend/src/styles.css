@@ -1293,6 +1293,80 @@ h4 {
   line-height: 0.84;
 }
 
+.letter-crossword {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(12rem, 0.62fr) minmax(12rem, 1fr);
+  gap: 1rem;
+  margin-top: 1.2rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid rgba(26, 33, 29, 0.16);
+}
+
+.letter-crossword-head {
+  grid-column: 1 / -1;
+}
+
+.letter-crossword h3 {
+  color: var(--ink);
+  font-size: 1.3rem;
+}
+
+.letter-crossword-grid {
+  display: grid;
+  gap: 0.12rem;
+  align-self: start;
+  max-width: 15rem;
+}
+
+.letter-crossword-cell {
+  position: relative;
+  aspect-ratio: 1;
+  min-width: 0;
+  border: 1px solid rgba(26, 33, 29, 0.42);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.letter-crossword-cell.empty {
+  border-color: transparent;
+  background: transparent;
+}
+
+.letter-crossword-cell small {
+  position: absolute;
+  top: 0.08rem;
+  left: 0.12rem;
+  color: rgba(26, 33, 29, 0.66);
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 0.5rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.letter-crossword-clues {
+  display: grid;
+  gap: 0.45rem;
+  align-content: start;
+  margin: 0;
+  padding-left: 1rem;
+  color: rgba(26, 33, 29, 0.78);
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.letter-crossword-clues li::marker {
+  color: transparent;
+}
+
+.letter-crossword-clues strong {
+  display: block;
+  color: var(--ink);
+  font-size: 0.62rem;
+  text-transform: uppercase;
+}
+
 .letter-foot {
   position: relative;
   z-index: 1;

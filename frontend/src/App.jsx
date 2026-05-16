@@ -308,6 +308,7 @@ function CompletedJobDetail({ job }) {
   const intent = mapIntent(response?.visit_intent);
   const moodClass = getMoodClass(intent.label);
   const letter = response?.letter;
+  const crossword = response?.crossword;
   const paragraphs = (letter?.paragraphs ?? letterParagraphs).map(cleanText);
 
   return (
@@ -338,6 +339,7 @@ function CompletedJobDetail({ job }) {
               <p key={paragraph}>{paragraph}</p>
             ))}
           </div>
+          <LetterCrossword crossword={crossword} />
           <footer className="letter-foot">
             <div className="qr-mark" aria-label="QR code placeholder" />
             <span>{letter?.qr_caption ?? "A personal note from Rosewood."}</span>
@@ -359,6 +361,52 @@ function CompletedJobDetail({ job }) {
           </article>
         </aside>
       </div>
+    </section>
+  );
+}
+
+function LetterCrossword({ crossword }) {
+  if (!crossword?.grid?.length || !crossword?.entries?.length) return null;
+
+  const starts = new Map(
+    crossword.entries.map((entry) => [`${entry.row}:${entry.col}`, entry.number]),
+  );
+
+  return (
+    <section className="letter-crossword" aria-label="Morning crossword">
+      <div className="letter-crossword-head">
+        <p className="eyebrow">Morning Crossword</p>
+        <h3>{crossword.title ?? "Hidden itinerary"}</h3>
+      </div>
+      <div
+        className="letter-crossword-grid"
+        style={{ gridTemplateColumns: `repeat(${crossword.grid[0]?.length ?? 1}, minmax(0, 1fr))` }}
+      >
+        {crossword.grid.flatMap((row, rowIndex) => (
+          row.map((cell, colIndex) => {
+            const key = `${rowIndex}:${colIndex}`;
+            const number = starts.get(key);
+
+            return (
+              <span
+                className={cell ? "letter-crossword-cell" : "letter-crossword-cell empty"}
+                data-answer={cell ?? ""}
+                key={key}
+              >
+                {number ? <small>{number}</small> : null}
+              </span>
+            );
+          })
+        ))}
+      </div>
+      <ol className="letter-crossword-clues">
+        {crossword.entries.map((entry) => (
+          <li key={`${entry.number}-${entry.answer}`}>
+            <strong>{entry.number} {entry.direction}</strong>
+            <span>{cleanText(entry.clue)}</span>
+          </li>
+        ))}
+      </ol>
     </section>
   );
 }

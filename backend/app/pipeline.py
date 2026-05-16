@@ -2,6 +2,7 @@ import asyncio
 import re
 from collections.abc import Awaitable, Callable
 from datetime import datetime
+from html import escape
 from pathlib import Path
 from typing import Any
 
@@ -22,6 +23,7 @@ from app.schemas import (
     AudioArtifact,
     CrosswordArtifact,
     CrosswordClue,
+    CrosswordEntry,
     DiscoveryRecommendation,
     EditorialVoice,
     LetterArtifact,
@@ -144,6 +146,10 @@ class RosewoodPipeline:
             resonance_output=resonance_output,
         )
         await emit("started", "Letter Composer", 92)
+        crossword = self._build_crossword(
+            title=context["Crossword Agent"]["title"],
+            clues=crossword_output.get("clues", []),
+        )
 
         letter = LetterArtifact(
             date_line="Morning letter · May 17, 2030",
@@ -153,10 +159,16 @@ class RosewoodPipeline:
             html=self._compose_letter_html(
                 guest_name=request.profile.guest_name,
                 paragraphs=letter_paragraphs,
+                crossword=crossword,
             ),
             pdf_status="html_ready",
         )
-        saved_paths = self._save_letter(request=request, intent=visit_intent, letter=letter)
+        saved_paths = self._save_letter(
+            request=request,
+            intent=visit_intent,
+            letter=letter,
+            crossword=crossword,
+        )
         letter.markdown_path = saved_paths["markdown_path"]
         letter.html_path = saved_paths["html_path"]
         await emit("completed", "Letter Composer", 96)
@@ -214,13 +226,7 @@ class RosewoodPipeline:
                 rules=voice_output["rules"],
                 forbidden_phrases=voice_output.get("forbidden_phrases", []),
             ),
-            crossword=CrosswordArtifact(
-                title=context["Crossword Agent"]["title"],
-                clues=[
-                    CrosswordClue(**clue)
-                    for clue in crossword_output.get("clues", [])
-                ],
-            ),
+            crossword=crossword,
             letter=letter,
             audio=audio,
             print_artifact=print_artifact,
@@ -289,12 +295,191 @@ class RosewoodPipeline:
     def _clean_prose(self, text: str) -> str:
         return text.replace("\u2014", ", ").replace("\u2013", "-")
 
+    def _build_crossword(self, *, title: str, clues: list[dict]) -> CrosswordArtifact:
+        normalized_clues = self._normalize_crossword_clues(clues)
+        if not normalized_clues:
+            normalized_clues = [
+                {"clue": "Morning cover over the hills", "answer": "FOG"},
+                {"clue": "Quiet breakfast note", "answer": "COFFEE"},
+                {"clue": "Ceramicist in the letter", "answer": "KITO"},
+            ]
+
+        size = 15
+        board: list[list[str | None]] = [[None for _ in range(size)] for _ in range(size)]
+        placements: list[dict] = []
+
+        first = normalized_clues[0]
+        first_col = max(0, (size - len(first["answer"])) // 2)
+        first_row = size // 2
+        if self._can_place(board, first["answer"], first_row, first_col, "across", require_crossing=False):
+            self._place_word(board, first["answer"], first_row, first_col, "across")
+            placements.append({**first, "row": first_row, "col": first_col, "direction": "across"})
+
+        for clue in normalized_clues[1:]:
+            placement = self._find_crossword_placement(board, placements, clue["answer"])
+            if placement is None:
+                continue
+
+            row, col, direction = placement
+            self._place_word(board, clue["answer"], row, col, direction)
+            placements.append({**clue, "row": row, "col": col, "direction": direction})
+
+        grid, row_offset, col_offset = self._trim_crossword_board(board)
+        entries = [
+            CrosswordEntry(
+                number=index + 1,
+                clue=item["clue"],
+                answer=item["answer"],
+                direction=item["direction"],
+                row=item["row"] - row_offset,
+                col=item["col"] - col_offset,
+            )
+            for index, item in enumerate(placements)
+        ]
+
+        return CrosswordArtifact(
+            title=title,
+            clues=[CrosswordClue(clue=entry.clue, answer=entry.answer) for entry in entries],
+            grid=grid,
+            entries=entries,
+        )
+
+    def _normalize_crossword_clues(self, clues: list[dict]) -> list[dict]:
+        normalized = []
+        seen_answers = set()
+
+        for raw in clues:
+            clue = self._clean_prose(str(raw.get("clue", ""))).strip()
+            answer = re.sub(r"[^A-Za-z]", "", str(raw.get("answer", ""))).upper()
+
+            if not clue or len(answer) < 2 or len(answer) > 12 or answer in seen_answers:
+                continue
+
+            seen_answers.add(answer)
+            normalized.append({"clue": clue, "answer": answer})
+
+            if len(normalized) == 5:
+                break
+
+        return normalized
+
+    def _find_crossword_placement(
+        self,
+        board: list[list[str | None]],
+        placements: list[dict],
+        answer: str,
+    ) -> tuple[int, int, str] | None:
+        for placed in placements:
+            existing = placed["answer"]
+            direction = "down" if placed["direction"] == "across" else "across"
+
+            for answer_index, letter in enumerate(answer):
+                for existing_index, existing_letter in enumerate(existing):
+                    if letter != existing_letter:
+                        continue
+
+                    if placed["direction"] == "across":
+                        row = placed["row"] - answer_index
+                        col = placed["col"] + existing_index
+                    else:
+                        row = placed["row"] + existing_index
+                        col = placed["col"] - answer_index
+
+                    if self._can_place(board, answer, row, col, direction, require_crossing=True):
+                        return row, col, direction
+
+        return None
+
+    def _can_place(
+        self,
+        board: list[list[str | None]],
+        answer: str,
+        row: int,
+        col: int,
+        direction: str,
+        *,
+        require_crossing: bool,
+    ) -> bool:
+        size = len(board)
+        delta_row = 1 if direction == "down" else 0
+        delta_col = 1 if direction == "across" else 0
+        end_row = row + delta_row * (len(answer) - 1)
+        end_col = col + delta_col * (len(answer) - 1)
+
+        if row < 0 or col < 0 or end_row >= size or end_col >= size:
+            return False
+
+        before_row = row - delta_row
+        before_col = col - delta_col
+        after_row = end_row + delta_row
+        after_col = end_col + delta_col
+
+        if self._cell_has_letter(board, before_row, before_col):
+            return False
+        if self._cell_has_letter(board, after_row, after_col):
+            return False
+
+        crossing = False
+        for index, letter in enumerate(answer):
+            current_row = row + delta_row * index
+            current_col = col + delta_col * index
+            existing = board[current_row][current_col]
+
+            if existing is not None and existing != letter:
+                return False
+
+            if existing == letter:
+                crossing = True
+                continue
+
+        return crossing or not require_crossing
+
+    def _cell_has_letter(self, board: list[list[str | None]], row: int, col: int) -> bool:
+        return 0 <= row < len(board) and 0 <= col < len(board[row]) and board[row][col] is not None
+
+    def _place_word(
+        self,
+        board: list[list[str | None]],
+        answer: str,
+        row: int,
+        col: int,
+        direction: str,
+    ) -> None:
+        for index, letter in enumerate(answer):
+            board[row + (index if direction == "down" else 0)][col + (index if direction == "across" else 0)] = letter
+
+    def _trim_crossword_board(
+        self,
+        board: list[list[str | None]],
+    ) -> tuple[list[list[str | None]], int, int]:
+        filled = [
+            (row_index, col_index)
+            for row_index, row in enumerate(board)
+            for col_index, cell in enumerate(row)
+            if cell is not None
+        ]
+
+        if not filled:
+            return [], 0, 0
+
+        min_row = max(0, min(row for row, _ in filled) - 1)
+        max_row = min(len(board) - 1, max(row for row, _ in filled) + 1)
+        min_col = max(0, min(col for _, col in filled) - 1)
+        max_col = min(len(board[0]) - 1, max(col for _, col in filled) + 1)
+
+        return (
+            [row[min_col:max_col + 1] for row in board[min_row:max_row + 1]],
+            min_row,
+            min_col,
+        )
+
     def _save_letter(
         self,
         *,
         request: PipelineRequest,
         intent: VisitIntent,
         letter: LetterArtifact,
+        crossword: CrosswordArtifact,
     ) -> dict[str, str]:
         output_dir = Path(__file__).resolve().parents[2] / "generated_letters"
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -308,7 +493,7 @@ class RosewoodPipeline:
         html_path = output_dir / f"{stem}.html"
 
         markdown_path.write_text(
-            self._compose_letter_markdown(intent=intent, letter=letter),
+            self._compose_letter_markdown(intent=intent, letter=letter, crossword=crossword),
             encoding="utf-8",
         )
         html_path.write_text(letter.html, encoding="utf-8")
@@ -318,14 +503,22 @@ class RosewoodPipeline:
             "html_path": str(html_path.relative_to(Path(__file__).resolve().parents[2])),
         }
 
-    def _compose_letter_markdown(self, *, intent: VisitIntent, letter: LetterArtifact) -> str:
+    def _compose_letter_markdown(
+        self,
+        *,
+        intent: VisitIntent,
+        letter: LetterArtifact,
+        crossword: CrosswordArtifact,
+    ) -> str:
         paragraphs = "\n\n".join(letter.paragraphs)
+        crossword_markdown = self._compose_crossword_markdown(crossword)
         return (
             "# ROSEWOOD\n\n"
             f"{letter.date_line}\n\n"
             f"Intent: {intent.label}\n\n"
             f"{letter.salutation}\n\n"
             f"{paragraphs}\n\n"
+            f"{crossword_markdown}\n\n"
             f"{letter.qr_caption}\n"
         )
 
@@ -333,12 +526,76 @@ class RosewoodPipeline:
         slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
         return slug or "guest"
 
-    def _compose_letter_html(self, guest_name: str, paragraphs: list[str]) -> str:
-        body = "".join(f"<p>{self._clean_prose(paragraph)}</p>" for paragraph in paragraphs)
+    def _compose_crossword_markdown(self, crossword: CrosswordArtifact) -> str:
+        if not crossword.entries or not crossword.grid:
+            return ""
+
+        grid_lines = [
+            " ".join("[]" if cell is not None else "  " for cell in row)
+            for row in crossword.grid
+        ]
+        clue_lines = [
+            f"{entry.number}. {entry.direction.title()}: {entry.clue}"
+            for entry in crossword.entries
+        ]
+
+        return (
+            "## Morning Crossword\n\n"
+            "```text\n"
+            f"{chr(10).join(grid_lines)}\n"
+            "```\n\n"
+            f"{chr(10).join(clue_lines)}"
+        )
+
+    def _compose_crossword_html(self, crossword: CrosswordArtifact) -> str:
+        if not crossword.entries or not crossword.grid:
+            return ""
+
+        numbered_starts = {
+            (entry.row, entry.col): entry.number
+            for entry in crossword.entries
+        }
+        rows = []
+        for row_index, row in enumerate(crossword.grid):
+            cells = []
+            for col_index, cell in enumerate(row):
+                if cell is None:
+                    cells.append("<td class=\"empty\"></td>")
+                    continue
+
+                number = numbered_starts.get((row_index, col_index))
+                number_html = f"<small>{number}</small>" if number is not None else ""
+                cells.append(f"<td data-letter=\"{escape(cell)}\">{number_html}<span></span></td>")
+            rows.append(f"<tr>{''.join(cells)}</tr>")
+
+        clues = "".join(
+            "<li>"
+            f"<strong>{entry.number} {escape(entry.direction)}</strong>"
+            f"<span>{escape(entry.clue)}</span>"
+            "</li>"
+            for entry in crossword.entries
+        )
+
+        return (
+            "<section class=\"letter-crossword\">"
+            "<h2>Morning Crossword</h2>"
+            f"<table>{''.join(rows)}</table>"
+            f"<ol>{clues}</ol>"
+            "</section>"
+        )
+
+    def _compose_letter_html(
+        self,
+        guest_name: str,
+        paragraphs: list[str],
+        crossword: CrosswordArtifact,
+    ) -> str:
+        body = "".join(f"<p>{escape(self._clean_prose(paragraph))}</p>" for paragraph in paragraphs)
+        crossword_html = self._compose_crossword_html(crossword)
         return (
             "<article class=\"rosewood-letter\">"
             "<header><strong>ROSEWOOD</strong><span>Morning letter</span></header>"
-            f"<main><p><strong>Good morning, {guest_name}.</strong></p>{body}</main>"
+            f"<main><p><strong>Good morning, {escape(guest_name)}.</strong></p>{body}{crossword_html}</main>"
             "<footer>A personal note from Rosewood.</footer>"
             "</article>"
         )

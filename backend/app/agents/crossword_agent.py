@@ -35,6 +35,7 @@ class CrosswordAgent(BaseAgent):
             system=(
                 "You are the Rosewood Letter Crossword Agent. Create a small elegant "
                 "crossword clue set where answers hide the day's recommendations. "
+                "Prefer short answer words that share letters with each other. "
                 "Return only JSON with clues, where clues is a list of clue/answer objects."
             ),
             prompt=f"Intent: {intent.model_dump() if intent else {}}\nContext: {context or {}}",

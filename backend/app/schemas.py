@@ -128,9 +128,20 @@ class CrosswordClue(BaseModel):
     answer: str
 
 
+class CrosswordEntry(BaseModel):
+    number: int
+    clue: str
+    answer: str
+    direction: Literal["across", "down"]
+    row: int
+    col: int
+
+
 class CrosswordArtifact(BaseModel):
     title: str
     clues: list[CrosswordClue] = Field(default_factory=list)
+    grid: list[list[str | None]] = Field(default_factory=list)
+    entries: list[CrosswordEntry] = Field(default_factory=list)
 
 
 class LetterArtifact(BaseModel):
