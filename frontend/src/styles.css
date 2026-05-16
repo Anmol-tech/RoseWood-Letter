@@ -4,7 +4,6 @@
   --green-900: #0b1e18;
   --green-850: #102a22;
   --green-800: #16372d;
-  --green-700: #215244;
   --sage: #a8b8aa;
   --mint: #dbe7dc;
   --paper: #f6f1e8;
@@ -36,6 +35,11 @@ body {
 button,
 a {
   font: inherit;
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.82;
 }
 
 .app-shell {
@@ -128,7 +132,10 @@ h4 {
 }
 
 .nav-item {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 2.75rem;
   padding: 0.75rem 0.85rem;
   border-radius: 0.5rem;
   color: var(--muted);
@@ -330,6 +337,10 @@ h4 {
 }
 
 .primary-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
   min-height: 2.55rem;
   padding: 0 0.9rem;
   border: 1px solid rgba(246, 241, 232, 0.3);
@@ -352,7 +363,10 @@ h4 {
   border: 1px solid var(--line);
   border-radius: 0.5rem;
   background: rgba(7, 20, 16, 0.46);
-  transition: border-color 180ms ease, background 180ms ease, transform 180ms ease;
+  transition:
+    border-color 180ms ease,
+    background 180ms ease,
+    transform 180ms ease;
 }
 
 .agent-node.active {
@@ -498,6 +512,21 @@ h4 {
 
 .crossword .filled {
   background: rgba(7, 20, 16, 0.6);
+}
+
+.build-next {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.build-next svg {
+  flex: 0 0 auto;
+  color: var(--gold);
+}
+
+.build-next h3 {
+  font-size: 1.35rem;
 }
 
 @media (max-width: 1050px) {
