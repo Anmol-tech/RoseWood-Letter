@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from app.db import create_guest_profile, get_guest_profile, init_db, list_guest_profiles
 from app.pipeline import pipeline
 from app.scenarios import DEMO_SCENARIOS
+from app.services import anthropic_client, elevenlabs_client
 from app.schemas import (
     DemoScenario,
     GuestProfileCreate,
@@ -47,6 +48,14 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/provider-status")
+def provider_status() -> dict:
+    return {
+        "anthropic": anthropic_client.status(),
+        "elevenlabs": elevenlabs_client.status(),
+    }
 
 
 @app.get("/agents")

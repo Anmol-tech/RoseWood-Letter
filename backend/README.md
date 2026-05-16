@@ -39,6 +39,7 @@ Generated voice notes are saved under `app/static/audio/` and served from
 ## Endpoints
 
 - `GET /health`
+- `GET /provider-status`
 - `GET /agents`
 - `GET /scenarios`
 - `POST /profiles`

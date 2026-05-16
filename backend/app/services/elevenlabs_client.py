@@ -2,14 +2,32 @@ import hashlib
 import os
 from pathlib import Path
 
+from app.config import load_env
+
 
 class ElevenLabsClient:
     def __init__(self) -> None:
+        load_env()
         self.api_key = os.getenv("ELEVENLABS_API_KEY", "")
         self.base_url = os.getenv("ELEVENLABS_BASE_URL", "https://api.elevenlabs.io")
         self.model_id = os.getenv("ELEVENLABS_MODEL_ID", "eleven_multilingual_v2")
         self.output_format = os.getenv("ELEVENLABS_OUTPUT_FORMAT", "mp3_44100_128")
         self.enabled = bool(self.api_key)
+
+    def status(self) -> dict[str, str | bool]:
+        try:
+            import httpx  # noqa: F401
+            httpx_installed = True
+        except ImportError:
+            httpx_installed = False
+
+        return {
+            "enabled": self.enabled,
+            "api_key_present": bool(self.api_key),
+            "default_voice_present": bool(os.getenv("ELEVENLABS_DEFAULT_VOICE_ID")),
+            "httpx_installed": httpx_installed,
+            "model_id": self.model_id,
+        }
 
     def voice_id_for(self, label: str) -> str:
         key = label.upper().replace(" ", "_").replace("/", "_")

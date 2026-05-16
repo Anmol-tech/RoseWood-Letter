@@ -45,6 +45,7 @@ Without keys, the backend uses deterministic demo fallbacks.
 ## Backend Endpoints
 
 - `GET /health`
+- `GET /provider-status`
 - `GET /agents`
 - `GET /scenarios`
 - `POST /profiles`
