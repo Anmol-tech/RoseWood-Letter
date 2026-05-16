@@ -26,6 +26,8 @@ from app.schemas import (
     CrosswordArtifact,
     CrosswordClue,
     CrosswordEntry,
+    DeliveryArtifact,
+    DeliveryChannelState,
     DiscoveryRecommendation,
     EditorialVoice,
     LetterArtifact,
@@ -202,6 +204,10 @@ class RosewoodPipeline:
             print_status="ready_for_composition",
             delivery_window=compositor_output.get("delivery_window", "06:00"),
         )
+        delivery = DeliveryArtifact(
+            letter_url=qr_url,
+            email=DeliveryChannelState(to=request.profile.email),
+        )
 
         return PipelineResponse(
             profile=request.profile,
@@ -245,6 +251,7 @@ class RosewoodPipeline:
             letter=letter,
             audio=audio,
             print_artifact=print_artifact,
+            delivery=delivery,
             audio_script=audio.script,
             print_status=print_artifact.print_status,
         )

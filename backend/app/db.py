@@ -24,6 +24,8 @@ def init_db() -> None:
                 guest_name TEXT NOT NULL,
                 suite TEXT NOT NULL,
                 property_location TEXT NOT NULL DEFAULT 'Rosewood Menlo Park',
+                email TEXT,
+                phone TEXT,
                 booking_notes TEXT NOT NULL,
                 arrival_date TEXT NOT NULL,
                 stay_nights INTEGER NOT NULL,
@@ -45,6 +47,10 @@ def init_db() -> None:
                 ADD COLUMN property_location TEXT NOT NULL DEFAULT 'Rosewood Menlo Park'
                 """
             )
+        if "email" not in columns:
+            connection.execute("ALTER TABLE guest_profiles ADD COLUMN email TEXT")
+        if "phone" not in columns:
+            connection.execute("ALTER TABLE guest_profiles ADD COLUMN phone TEXT")
 
 
 def _row_to_profile(row: sqlite3.Row) -> GuestProfileRecord:
@@ -54,6 +60,8 @@ def _row_to_profile(row: sqlite3.Row) -> GuestProfileRecord:
         guest_name=row["guest_name"],
         suite=row["suite"],
         property_location=row["property_location"],
+        email=row["email"],
+        phone=row["phone"],
         booking_notes=row["booking_notes"],
         arrival_date=row["arrival_date"],
         stay_nights=row["stay_nights"],
@@ -76,6 +84,8 @@ def create_guest_profile(profile: GuestProfileCreate) -> GuestProfileRecord:
                 guest_name,
                 suite,
                 property_location,
+                email,
+                phone,
                 booking_notes,
                 arrival_date,
                 stay_nights,
@@ -84,12 +94,14 @@ def create_guest_profile(profile: GuestProfileCreate) -> GuestProfileRecord:
                 created_at,
                 updated_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 profile.guest_name,
                 profile.suite,
                 profile.property_location,
+                profile.email,
+                profile.phone,
                 profile.booking_notes,
                 profile.arrival_date,
                 profile.stay_nights,

@@ -1,6 +1,18 @@
 from app.schemas import AmbientSignal, DemoScenario, GuestPersona, GuestProfile, PipelineRequest
 
 
+DEMO_EMAIL = "asharma14@scu.edu"
+DEMO_PHONES = ["+19255383461", "+19255778852"]
+
+
+def demo_email(guest_name: str) -> str:
+    return DEMO_EMAIL
+
+
+def demo_phone(scenario_id: str) -> str:
+    return DEMO_PHONES[sum(ord(character) for character in scenario_id) % len(DEMO_PHONES)]
+
+
 def scenario(
     *,
     scenario_id: str,
@@ -26,6 +38,8 @@ def scenario(
                 guest_name=guest_name,
                 suite=suite,
                 property_location=location,
+                email=demo_email(guest_name),
+                phone=demo_phone(scenario_id),
                 booking_notes=f"{location}: {notes}",
                 arrival_date="2030-05-16",
                 stay_nights=nights,
@@ -54,6 +68,8 @@ DEMO_SCENARIOS = [
                 guest_name="Avery Stone",
                 suite="804",
                 property_location="Rosewood Menlo Park",
+                email=demo_email("Avery Stone"),
+                phone=demo_phone("quiet-restoration"),
                 booking_notes="Rosewood Menlo Park: quiet weekend, solo arrival, no calls if possible",
                 arrival_date="2030-05-16",
                 stay_nights=2,
@@ -88,6 +104,8 @@ DEMO_SCENARIOS = [
                 guest_name="Mara and Julian Chen",
                 suite="1203",
                 property_location="Rosewood Hong Kong",
+                email=demo_email("Mara and Julian Chen"),
+                phone=demo_phone("milestone-couple"),
                 booking_notes="Rosewood Hong Kong: first trip together in two years, private dinner preferred",
                 arrival_date="2030-05-16",
                 stay_nights=3,
@@ -123,6 +141,8 @@ DEMO_SCENARIOS = [
                 guest_name="Leila Hart",
                 suite="617",
                 property_location="Rosewood New York",
+                email=demo_email("Leila Hart"),
+                phone=demo_phone("celebration-discovery"),
                 booking_notes="Rosewood New York: birthday weekend, loves food, design, hidden local places",
                 arrival_date="2030-05-16",
                 stay_nights=2,

@@ -78,6 +78,22 @@ export async function getRosewoodJobHistoryItem(jobId) {
   return response.json();
 }
 
+export async function deliverRosewoodJob(jobId, payload) {
+  const response = await fetch(`${API_BASE_URL}/pipeline/job-history/${jobId}/deliver`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Delivery request failed with ${response.status}`);
+  }
+
+  return response.json();
+}
+
 export async function getRosewoodPipelineJobs(batchId) {
   const response = await fetch(`${API_BASE_URL}/pipeline/jobs/${batchId}`);
 

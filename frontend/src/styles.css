@@ -774,6 +774,84 @@ h4 {
   opacity: 0.38;
 }
 
+.delivery-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+}
+
+.delivery-card-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.delivery-card-head strong {
+  display: block;
+  max-width: 100%;
+  font-size: 0.92rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.delivery-channel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.55rem;
+  min-width: 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line);
+}
+
+.delivery-card label {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.delivery-card label span {
+  color: var(--steel);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.delivery-card input {
+  width: 100%;
+  min-width: 0;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.45rem;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--paper);
+  font: inherit;
+}
+
+.delivery-card button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-width: 0;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid rgba(216, 199, 157, 0.32);
+  border-radius: 0.45rem;
+  background: rgba(216, 199, 157, 0.12);
+  color: var(--paper);
+  cursor: pointer;
+}
+
+.delivery-card small {
+  color: var(--steel);
+  line-height: 1.45;
+}
+
+.delivery-error {
+  color: #ffd0d0;
+}
+
 .guest-letter-shell {
   min-height: 100vh;
   padding: clamp(1rem, 3vw, 2.5rem);

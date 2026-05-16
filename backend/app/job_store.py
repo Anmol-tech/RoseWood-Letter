@@ -3,7 +3,9 @@ from datetime import datetime
 from uuid import uuid4
 
 from app.db import get_connection, init_db
-from app.schemas import PipelineJobBatchState, PipelineJobState, PipelineRequest, PipelineResponse
+from app.schemas import DeliveryArtifact, PipelineJobBatchState, PipelineJobState, PipelineRequest, PipelineResponse
+
+DEMO_EMAIL = "asharma14@scu.edu"
 
 
 class PipelineJobStore:
@@ -38,6 +40,7 @@ class PipelineJobStore:
                     completed_agents_json TEXT NOT NULL,
                     progress INTEGER NOT NULL,
                     response_json TEXT,
+                    delivery_json TEXT,
                     error TEXT,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL,
@@ -56,6 +59,8 @@ class PipelineJobStore:
                     ADD COLUMN location TEXT NOT NULL DEFAULT 'Rosewood Property'
                     """
                 )
+            if "delivery_json" not in columns:
+                connection.execute("ALTER TABLE pipeline_jobs ADD COLUMN delivery_json TEXT")
 
     def recover_interrupted_jobs(self) -> None:
         self.init_tables()
@@ -127,11 +132,12 @@ class PipelineJobStore:
                         completed_agents_json,
                         progress,
                         response_json,
+                        delivery_json,
                         error,
                         created_at,
                         updated_at
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         job.job_id,
@@ -146,6 +152,7 @@ class PipelineJobStore:
                         json.dumps(job.completed_agents),
                         job.progress,
                         None,
+                        job.delivery.model_dump_json(),
                         None,
                         now.isoformat(),
                         now.isoformat(),
@@ -206,6 +213,12 @@ class PipelineJobStore:
         response = None
         if row["response_json"]:
             response = PipelineResponse.model_validate(json.loads(row["response_json"]))
+        delivery = DeliveryArtifact()
+        if row["delivery_json"]:
+            delivery = DeliveryArtifact.model_validate(json.loads(row["delivery_json"]))
+        if response is not None:
+            delivery.letter_url = delivery.letter_url or response.delivery.letter_url or response.print_artifact.qr_url
+            delivery.email.to = delivery.email.to or response.profile.email or DEMO_EMAIL
 
         return PipelineJobState(
             job_id=row["job_id"],
@@ -219,6 +232,7 @@ class PipelineJobStore:
             completed_agents=json.loads(row["completed_agents_json"]),
             progress=row["progress"],
             response=response,
+            delivery=delivery,
             error=row["error"],
             created_at=datetime.fromisoformat(row["created_at"]),
             updated_at=datetime.fromisoformat(row["updated_at"]),
@@ -263,6 +277,7 @@ class PipelineJobStore:
                     completed_agents_json = ?,
                     progress = ?,
                     response_json = ?,
+                    delivery_json = ?,
                     error = ?,
                     updated_at = ?
                 WHERE job_id = ? AND batch_id = ?
@@ -273,6 +288,7 @@ class PipelineJobStore:
                     json.dumps(job.completed_agents),
                     job.progress,
                     job.response.model_dump_json() if job.response else None,
+                    job.delivery.model_dump_json(),
                     job.error,
                     now.isoformat(),
                     job.job_id,
@@ -362,8 +378,34 @@ class PipelineJobStore:
             completed_agents=completed_agents,
             progress=100,
             response=response,
+            delivery=response.delivery,
             error=None,
         )
+
+    def update_delivery(
+        self,
+        *,
+        job_id: str,
+        delivery: DeliveryArtifact,
+        response: PipelineResponse | None = None,
+    ) -> PipelineJobState | None:
+        job = self.get_job_by_id(job_id)
+        if job is None:
+            return None
+
+        updated_response = response or job.response
+        if updated_response is not None:
+            updated_response = updated_response.model_copy(update={"delivery": delivery})
+
+        updated = job.model_copy(
+            update={
+                "delivery": delivery,
+                "response": updated_response,
+                "updated_at": datetime.utcnow(),
+            }
+        )
+        self._persist_job(updated)
+        return updated
 
     def mark_failed(self, *, batch_id: str, job_id: str, error: str) -> None:
         self.update_job(

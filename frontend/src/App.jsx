@@ -6,6 +6,7 @@ import {
   FileText,
   Headphones,
   Loader2,
+  Mail,
   Moon,
   Play,
   Printer,
@@ -13,6 +14,7 @@ import {
   Users,
 } from "lucide-react";
 import {
+  deliverRosewoodJob,
   getDemoScenarios,
   getRosewoodJobHistoryItem,
   getRosewoodPipelineJobs,
@@ -349,7 +351,7 @@ function JobsScreen({ jobs, onSelect, onBack }) {
   );
 }
 
-function DetailScreen({ jobs, selectedJobId, onBackToRuns, onBackToGuests }) {
+function DetailScreen({ jobs, selectedJobId, onBackToRuns, onBackToGuests, onJobUpdate }) {
   const selectedJob = jobs.find((job) => job.job_id === selectedJobId) ?? jobs[0];
 
   return (
@@ -367,12 +369,12 @@ function DetailScreen({ jobs, selectedJobId, onBackToRuns, onBackToGuests }) {
           Guests
         </button>
       </section>
-      <JobDetail job={selectedJob} />
+      <JobDetail job={selectedJob} onJobUpdate={onJobUpdate} />
     </main>
   );
 }
 
-function JobDetail({ job }) {
+function JobDetail({ job, onJobUpdate }) {
   if (!job) {
     return (
       <section className="empty-state">
@@ -397,7 +399,7 @@ function JobDetail({ job }) {
     return <RunningJobDetail job={job} />;
   }
 
-  return <CompletedJobDetail job={job} />;
+  return <CompletedJobDetail job={job} onJobUpdate={onJobUpdate} />;
 }
 
 function RunningJobDetail({ job }) {
@@ -440,7 +442,7 @@ function RunningJobDetail({ job }) {
   );
 }
 
-function CompletedJobDetail({ job }) {
+function CompletedJobDetail({ job, onJobUpdate }) {
   const response = job.response;
   const intent = mapIntent(response?.visit_intent);
   const moodClass = getMoodClass(intent.label);
@@ -495,6 +497,7 @@ function CompletedJobDetail({ job }) {
           <ArtifactCard icon={<Printer size={18} />} label="Print" value={response?.print_artifact?.print_status} />
           <ArtifactCard icon={<Headphones size={18} />} label="Voice" value={response?.audio?.voice} />
           <ArtifactCard icon={<QrCode size={18} />} label="QR" value={response?.print_artifact?.qr_url} />
+          <DeliveryPanel job={job} onJobUpdate={onJobUpdate} />
           <CrosswordAnswerKey crossword={crossword} />
           <article className="artifact-card audio-card">
             <div>
@@ -522,6 +525,64 @@ function CompletedJobDetail({ job }) {
         </aside>
       </div>
     </section>
+  );
+}
+
+function DeliveryPanel({ job, onJobUpdate }) {
+  const profile = job.response?.profile;
+  const delivery = job.delivery ?? job.response?.delivery;
+  const deliveryEmail = delivery?.email?.to || profile?.email || "";
+  const [emailTo, setEmailTo] = useState(deliveryEmail);
+  const [sending, setSending] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    setEmailTo(deliveryEmail);
+    setError("");
+  }, [deliveryEmail, job.job_id]);
+
+  async function sendEmail() {
+    setSending("email");
+    setError("");
+    try {
+      const updated = await deliverRosewoodJob(job.job_id, {
+        email: true,
+        email_to: emailTo,
+      });
+      onJobUpdate?.(updated);
+    } catch (deliveryError) {
+      setError(deliveryError.message);
+    } finally {
+      setSending("");
+    }
+  }
+
+  return (
+    <article className="artifact-card delivery-card">
+      <div className="delivery-card-head">
+        <Mail size={18} />
+        <div>
+          <p className="eyebrow">Electronic delivery</p>
+          <strong>{delivery?.letter_url ?? job.response?.print_artifact?.qr_url}</strong>
+        </div>
+      </div>
+      <div className="delivery-channel">
+        <label>
+          <span>Email</span>
+          <input value={emailTo} onChange={(event) => setEmailTo(event.target.value)} placeholder="guest@example.com" />
+        </label>
+        <button disabled={sending === "email" || !emailTo} onClick={sendEmail} type="button">
+          <Mail size={16} />
+          {delivery?.email?.status === "sent" ? "Send again" : "Send email"}
+        </button>
+        <small>
+          {delivery?.email?.status ?? "not_sent"}
+          {delivery?.email?.sent_at ? ` · ${formatRunTimestamp(delivery.email.sent_at)}` : ""}
+          {delivery?.email?.error ? ` · ${delivery.email.error}` : ""}
+        </small>
+      </div>
+      {error ? <small className="delivery-error">{error}</small> : null}
+    </article>
   );
 }
 
@@ -805,6 +866,18 @@ export default function App() {
     }
   }
 
+  function updateJob(updatedJob) {
+    setJobHistory((current) => current.map((job) => (
+      job.job_id === updatedJob.job_id ? updatedJob : job
+    )));
+    if (batch?.jobs?.some((job) => job.job_id === updatedJob.job_id)) {
+      setBatch((current) => ({
+        ...current,
+        jobs: current.jobs.map((job) => (job.job_id === updatedJob.job_id ? updatedJob : job)),
+      }));
+    }
+  }
+
   if (guestLetterJobId) {
     return <GuestLetterPage error={guestLetterError} job={guestLetterJob} />;
   }
@@ -839,6 +912,7 @@ export default function App() {
         ) : (
           <DetailScreen
             jobs={jobHistory}
+            onJobUpdate={updateJob}
             onBackToGuests={() => setScreen("home")}
             onBackToRuns={() => setScreen("jobs")}
             selectedJobId={selectedJobId}

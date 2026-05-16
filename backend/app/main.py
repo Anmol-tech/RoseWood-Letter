@@ -12,9 +12,10 @@ from app.db import create_guest_profile, get_guest_profile, init_db, list_guest_
 from app.job_store import job_store
 from app.pipeline import pipeline
 from app.scenarios import DEMO_SCENARIOS
-from app.services import anthropic_client, elevenlabs_client
+from app.services import anthropic_client, delivery_service, elevenlabs_client
 from app.schemas import (
     DemoScenario,
+    DeliveryRequest,
     GuestProfileCreate,
     GuestProfileRecord,
     PipelineBatchRequest,
@@ -69,6 +70,7 @@ def provider_status() -> dict:
     return {
         "anthropic": anthropic_client.status(),
         "elevenlabs": elevenlabs_client.status(),
+        "delivery": delivery_service.status(),
     }
 
 
@@ -229,6 +231,32 @@ def get_pipeline_job_history_item(job_id: str) -> PipelineJobState:
         raise HTTPException(status_code=404, detail="Pipeline job not found")
 
     return job
+
+
+@app.post("/pipeline/job-history/{job_id}/deliver", response_model=PipelineJobState)
+async def deliver_pipeline_job(job_id: str, request: DeliveryRequest) -> PipelineJobState:
+    job = job_store.get_job_by_id(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Pipeline job not found")
+    if job.status != "completed" or job.response is None:
+        raise HTTPException(status_code=409, detail="Pipeline job is not completed yet")
+
+    email_result = None
+    if request.email:
+        email_to = request.email_to or job.response.profile.email
+        if not email_to:
+            raise HTTPException(status_code=400, detail="Email recipient is missing")
+        email_result = await delivery_service.send_email(job=job, to_email=email_to)
+
+    delivery = delivery_service.merge_delivery(
+        job=job,
+        email=email_result,
+    )
+    updated = job_store.update_delivery(job_id=job_id, delivery=delivery)
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Pipeline job not found")
+
+    return updated
 
 
 @app.get("/pipeline/jobs/{batch_id}", response_model=PipelineJobBatchState)
