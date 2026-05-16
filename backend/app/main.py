@@ -1,8 +1,9 @@
 from contextlib import asynccontextmanager
 import asyncio
+import logging
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -24,6 +25,8 @@ from app.schemas import (
     PipelineRequest,
     PipelineResponse,
 )
+
+logging.basicConfig(level=logging.INFO)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -50,7 +53,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-STATIC_DIR = Path(__file__).resolve().parent / "static"
+STATIC_DIR = Path(__file__).resolve().parents[1] / "static"
+STATIC_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
@@ -65,6 +69,11 @@ def provider_status() -> dict:
         "anthropic": anthropic_client.status(),
         "elevenlabs": elevenlabs_client.status(),
     }
+
+
+@app.get("/elevenlabs/voices")
+async def elevenlabs_voices() -> dict[str, list[dict[str, str]]]:
+    return {"voices": await elevenlabs_client.list_voices()}
 
 
 @app.get("/agents")
@@ -119,20 +128,27 @@ def resolve_profile(request: PipelineRequest) -> PipelineRequest:
     return request
 
 
+def attach_public_base_url(pipeline_request: PipelineRequest, http_request: Request) -> PipelineRequest:
+    if pipeline_request.public_base_url is None:
+        pipeline_request.public_base_url = str(http_request.base_url).rstrip("/")
+
+    return pipeline_request
+
+
 @app.post("/pipeline/run", response_model=PipelineResponse)
-async def run_pipeline(request: PipelineRequest) -> PipelineResponse:
-    request = resolve_profile(request)
+async def run_pipeline(request: PipelineRequest, http_request: Request) -> PipelineResponse:
+    request = attach_public_base_url(resolve_profile(request), http_request)
     return await pipeline.arun(request)
 
 
 @app.post("/pipeline/run-batch", response_model=PipelineBatchResponse)
-async def run_pipeline_batch(batch: PipelineBatchRequest) -> PipelineBatchResponse:
+async def run_pipeline_batch(batch: PipelineBatchRequest, http_request: Request) -> PipelineBatchResponse:
     semaphore = asyncio.Semaphore(batch.max_concurrency)
 
     async def run_one(index: int, request: PipelineRequest) -> PipelineBatchResult:
         async with semaphore:
             try:
-                resolved = resolve_profile(request)
+                resolved = attach_public_base_url(resolve_profile(request), http_request)
                 response = await pipeline.arun(resolved)
                 return PipelineBatchResult(
                     index=index,
@@ -176,8 +192,11 @@ async def run_pipeline_batch(batch: PipelineBatchRequest) -> PipelineBatchRespon
 
 
 @app.post("/pipeline/jobs", response_model=PipelineJobBatchState)
-async def start_pipeline_jobs(batch: PipelineJobStartRequest) -> PipelineJobBatchState:
-    resolved_requests = [resolve_profile(request) for request in batch.requests]
+async def start_pipeline_jobs(batch: PipelineJobStartRequest, http_request: Request) -> PipelineJobBatchState:
+    resolved_requests = [
+        attach_public_base_url(resolve_profile(request), http_request)
+        for request in batch.requests
+    ]
     state = job_store.create_batch(
         requests=resolved_requests,
         max_concurrency=batch.max_concurrency,

@@ -55,6 +55,7 @@ class PipelineRequest(BaseModel):
     profile_id: int | None = None
     profile: GuestProfile = Field(default_factory=GuestProfile)
     ambient_signals: list[AmbientSignal] = Field(default_factory=list)
+    public_base_url: str | None = None
 
 
 class PipelineBatchRequest(BaseModel):

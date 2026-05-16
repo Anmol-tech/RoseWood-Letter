@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import re
 from collections.abc import Awaitable, Callable
 from datetime import datetime
@@ -37,6 +38,8 @@ from app.schemas import (
     WorldContext,
 )
 
+logger = logging.getLogger("rosewood.pipeline")
+
 
 class RosewoodPipeline:
     def __init__(self) -> None:
@@ -69,6 +72,14 @@ class RosewoodPipeline:
         progress_callback: Callable[[dict[str, Any]], Awaitable[None] | None] | None = None,
     ) -> PipelineResponse:
         async def emit(event: str, agent: str, progress: int) -> None:
+            logger.info(
+                "pipeline agent %s: guest=%s suite=%s agent=%s progress=%s",
+                event,
+                request.profile.guest_name,
+                request.profile.suite,
+                agent,
+                progress,
+            )
             if progress_callback is None:
                 return
 

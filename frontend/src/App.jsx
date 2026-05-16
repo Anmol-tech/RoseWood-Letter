@@ -463,12 +463,26 @@ function CompletedJobDetail({ job }) {
           <CrosswordAnswerKey crossword={crossword} />
           <article className="artifact-card audio-card">
             <div>
-              <p className="eyebrow">Audio script</p>
+              <p className="eyebrow">ElevenLabs voice note</p>
+              <strong>{response?.audio.status ?? "script_ready"}</strong>
               <p>"{cleanText(response?.audio_script ?? "")}"</p>
+              {response?.audio.audio_url ? (
+                <audio controls src={response.audio.audio_url}>
+                  <track kind="captions" />
+                </audio>
+              ) : (
+                <small>No audio file generated yet. Check ElevenLabs key and voice id.</small>
+              )}
             </div>
-            <button type="button" aria-label="Play audio preview">
+            <a
+              aria-label="Open audio file"
+              className={response?.audio.audio_url ? "" : "disabled"}
+              href={response?.audio.audio_url ?? "#"}
+              rel="noreferrer"
+              target="_blank"
+            >
               <Play size={16} fill="currentColor" />
-            </button>
+            </a>
           </article>
         </aside>
       </div>

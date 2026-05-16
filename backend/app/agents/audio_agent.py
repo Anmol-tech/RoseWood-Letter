@@ -59,7 +59,9 @@ class AudioAgent(BaseAgent):
         synthesis = await elevenlabs_client.synthesize(
             text=data["script"],
             intent_label=intent.label if intent else "Quiet Restoration",
+            persona_segment=request.profile.persona.segment,
             suite=request.profile.suite,
+            public_base_url=request.public_base_url,
         )
         return AgentOutput(
             agent=self.name,

@@ -709,7 +709,20 @@ h4 {
   letter-spacing: 0.04em;
 }
 
-.audio-card button {
+.audio-card audio {
+  display: block;
+  width: 100%;
+  margin-top: 0.75rem;
+}
+
+.audio-card small {
+  display: block;
+  margin-top: 0.65rem;
+  color: var(--steel);
+  line-height: 1.4;
+}
+
+.audio-card a {
   display: grid;
   width: 2.4rem;
   height: 2.4rem;
@@ -718,6 +731,12 @@ h4 {
   border-radius: 50%;
   background: transparent;
   color: var(--paper);
+  text-decoration: none;
+}
+
+.audio-card a.disabled {
+  pointer-events: none;
+  opacity: 0.38;
 }
 
 .toast-error {
